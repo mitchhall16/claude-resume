@@ -87,8 +87,22 @@ button.danger:hover{background:#dc2626}
 <body>
 <div class="container">
 <header>
+<div style="display:flex;justify-content:space-between;align-items:center">
+<div>
 <h1>Claude Resume</h1>
 <p class="subtitle">AI-Powered ATS Resume Builder - Tailored for Every Job</p>
+</div>
+<div id="authSection">
+<button onclick="loginWithGoogle()" class="secondary" style="display:flex;align-items:center;gap:10px">
+<svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+Sign in with Google
+</button>
+</div>
+</div>
+<div id="userInfo" style="display:none;text-align:right;margin-top:10px">
+<span id="userName" style="color:#888"></span>
+<button onclick="logout()" class="secondary" style="margin-left:10px;padding:6px 12px;font-size:0.85em">Logout</button>
+</div>
 </header>
 
 <div class="tabs">
@@ -104,12 +118,40 @@ button.danger:hover{background:#dc2626}
 
 <!-- Import Section -->
 <div class="card" style="margin-bottom:30px;background:linear-gradient(135deg,#1a1a2e,#16213e)">
-<h4 style="color:#8b5cf6;margin-bottom:15px">Import Existing Resume</h4>
-<p style="color:#888;font-size:0.9em;margin-bottom:15px">Paste your existing resume text below and click "Parse with AI" to auto-fill your profile</p>
-<textarea id="importResume" rows="6" placeholder="Paste your resume text here..."></textarea>
+<h4 style="color:#8b5cf6;margin-bottom:15px">Import Your Data</h4>
+
+<div class="grid" style="margin-bottom:20px">
+<div>
+<label style="color:#0077b5;font-weight:600">LinkedIn Data Export</label>
+<p style="color:#888;font-size:0.85em;margin:5px 0 10px">Download from LinkedIn → Settings → Get a copy of your data</p>
+<input type="file" id="linkedinZip" accept=".zip" onchange="parseLinkedInZip(this.files[0])" style="display:none">
+<button onclick="document.getElementById('linkedinZip').click()" class="secondary" style="width:100%">
+Upload LinkedIn ZIP
+</button>
+</div>
+<div>
+<label style="color:#6366f1;font-weight:600">Paste Resume Text</label>
+<p style="color:#888;font-size:0.85em;margin:5px 0 10px">Copy/paste from any document</p>
+<button onclick="document.getElementById('resumeTextModal').classList.add('active')" class="secondary" style="width:100%">
+Paste Resume Text
+</button>
+</div>
+</div>
+<div id="importStatus" style="color:#00ff88;font-size:0.9em"></div>
+</div>
+
+<!-- Resume Text Modal -->
+<div class="modal" id="resumeTextModal">
+<div class="modal-content">
+<div class="modal-header">
+<h3>Paste Resume Text</h3>
+<button class="modal-close" onclick="document.getElementById('resumeTextModal').classList.remove('active')">&times;</button>
+</div>
+<textarea id="importResume" rows="12" placeholder="Paste your resume text here..."></textarea>
 <div style="margin-top:15px;display:flex;gap:10px">
-<button onclick="parseResumeWithAI()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">Parse with AI</button>
+<button onclick="parseResumeWithAI()">Parse with AI</button>
 <span id="parseStatus" style="color:#888;line-height:45px"></span>
+</div>
 </div>
 </div>
 
@@ -798,6 +840,263 @@ async function parseResumeWithAI() {
   }
 }
 
+// Google OAuth
+const GOOGLE_CLIENT_ID = ''; // Will be set via env or config
+let currentUser = null;
+
+async function loginWithGoogle() {
+  // Use Google Identity Services
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID,
+    scope: 'email profile',
+    callback: async (response) => {
+      if (response.access_token) {
+        // Get user info
+        const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: { Authorization: 'Bearer ' + response.access_token }
+        });
+        const user = await userRes.json();
+        currentUser = user;
+        localStorage.setItem('user', JSON.stringify(user));
+        updateAuthUI();
+        loadUserData();
+      }
+    }
+  });
+  client.requestAccessToken();
+}
+
+function logout() {
+  currentUser = null;
+  localStorage.removeItem('user');
+  updateAuthUI();
+}
+
+function updateAuthUI() {
+  const authSection = document.getElementById('authSection');
+  const userInfo = document.getElementById('userInfo');
+  const userName = document.getElementById('userName');
+
+  if (currentUser) {
+    authSection.style.display = 'none';
+    userInfo.style.display = 'block';
+    userName.textContent = currentUser.name || currentUser.email;
+  } else {
+    authSection.style.display = 'block';
+    userInfo.style.display = 'none';
+  }
+}
+
+async function loadUserData() {
+  if (!currentUser) return;
+  try {
+    const res = await fetch('/api/user/load?email=' + encodeURIComponent(currentUser.email));
+    if (res.ok) {
+      const data = await res.json();
+      if (data.profile) state.profile = data.profile;
+      if (data.experience) state.experience = data.experience;
+      if (data.education) state.education = data.education;
+      if (data.certs) state.certs = data.certs;
+      if (data.skills) state.skills = data.skills;
+      loadProfile();
+      renderExperience();
+      renderEducation();
+      renderCerts();
+      renderSkills();
+    }
+  } catch (e) {
+    console.log('No saved data found');
+  }
+}
+
+async function saveUserData() {
+  if (!currentUser) return;
+  try {
+    await fetch('/api/user/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: currentUser.email,
+        profile: state.profile,
+        experience: state.experience,
+        education: state.education,
+        certs: state.certs,
+        skills: state.skills
+      })
+    });
+  } catch (e) {
+    console.error('Save failed:', e);
+  }
+}
+
+// LinkedIn ZIP Parser
+async function parseLinkedInZip(file) {
+  if (!file) return;
+  const status = document.getElementById('importStatus');
+  status.textContent = 'Reading LinkedIn data...';
+
+  try {
+    const JSZip = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
+    const zip = await JSZip.default.loadAsync(file);
+
+    let profileData = {};
+    let positions = [];
+    let education = [];
+    let skills = [];
+
+    // Parse Profile.csv
+    const profileFile = zip.file(/Profile\.csv/i)[0];
+    if (profileFile) {
+      const text = await profileFile.async('text');
+      const lines = text.split('\n');
+      if (lines.length > 1) {
+        const headers = parseCSVLine(lines[0]);
+        const values = parseCSVLine(lines[1]);
+        headers.forEach((h, i) => {
+          if (h.toLowerCase().includes('first')) profileData.firstName = values[i];
+          if (h.toLowerCase().includes('last')) profileData.lastName = values[i];
+          if (h.toLowerCase().includes('headline')) profileData.summary = values[i];
+          if (h.toLowerCase().includes('email')) profileData.email = values[i];
+        });
+      }
+    }
+
+    // Parse Positions.csv
+    const positionsFile = zip.file(/Positions\.csv/i)[0];
+    if (positionsFile) {
+      const text = await positionsFile.async('text');
+      const lines = text.split('\n');
+      if (lines.length > 1) {
+        const headers = parseCSVLine(lines[0]);
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          const values = parseCSVLine(lines[i]);
+          const pos = {};
+          headers.forEach((h, idx) => {
+            const hl = h.toLowerCase();
+            if (hl.includes('company')) pos.company = values[idx];
+            if (hl.includes('title')) pos.title = values[idx];
+            if (hl.includes('description')) pos.description = values[idx];
+            if (hl.includes('location')) pos.location = values[idx];
+            if (hl.includes('started on')) pos.start = values[idx];
+            if (hl.includes('finished on')) pos.end = values[idx];
+          });
+          if (pos.company || pos.title) positions.push(pos);
+        }
+      }
+    }
+
+    // Parse Education.csv
+    const eduFile = zip.file(/Education\.csv/i)[0];
+    if (eduFile) {
+      const text = await eduFile.async('text');
+      const lines = text.split('\n');
+      if (lines.length > 1) {
+        const headers = parseCSVLine(lines[0]);
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          const values = parseCSVLine(lines[i]);
+          const edu = {};
+          headers.forEach((h, idx) => {
+            const hl = h.toLowerCase();
+            if (hl.includes('school')) edu.school = values[idx];
+            if (hl.includes('degree')) edu.degree = values[idx];
+            if (hl.includes('start')) edu.start = values[idx];
+            if (hl.includes('end')) edu.end = values[idx];
+          });
+          if (edu.school) education.push(edu);
+        }
+      }
+    }
+
+    // Parse Skills.csv
+    const skillsFile = zip.file(/Skills\.csv/i)[0];
+    if (skillsFile) {
+      const text = await skillsFile.async('text');
+      const lines = text.split('\n');
+      for (let i = 1; i < lines.length; i++) {
+        const skill = lines[i].trim().replace(/"/g, '');
+        if (skill) skills.push(skill);
+      }
+    }
+
+    // Apply to state
+    if (profileData.firstName) {
+      state.profile.fullName = (profileData.firstName + ' ' + (profileData.lastName || '')).trim();
+    }
+    if (profileData.email) state.profile.email = profileData.email;
+    if (profileData.summary) state.profile.summary = profileData.summary;
+    loadProfile();
+
+    if (positions.length > 0) {
+      state.experience = positions.map(p => ({
+        title: p.title || '',
+        company: p.company || '',
+        location: p.location || '',
+        start: p.start || '',
+        end: p.end || '',
+        bullets: p.description ? p.description.split(/[.;]\s+/).filter(b => b.trim()) : []
+      }));
+      localStorage.setItem('resumeExperience', JSON.stringify(state.experience));
+      renderExperience();
+    }
+
+    if (education.length > 0) {
+      state.education = education.map(e => ({
+        degree: e.degree || '',
+        school: e.school || '',
+        start: e.start || '',
+        end: e.end || '',
+        location: '',
+        gpa: '',
+        extras: ''
+      }));
+      localStorage.setItem('resumeEducation', JSON.stringify(state.education));
+      renderEducation();
+    }
+
+    if (skills.length > 0) {
+      state.skills.technical = [...new Set([...state.skills.technical, ...skills])];
+      localStorage.setItem('resumeSkills', JSON.stringify(state.skills));
+      renderSkills();
+    }
+
+    localStorage.setItem('resumeProfile', JSON.stringify(state.profile));
+    status.textContent = 'LinkedIn data imported! Found ' + positions.length + ' positions, ' + education.length + ' education, ' + skills.length + ' skills';
+    saveUserData();
+
+  } catch (e) {
+    status.textContent = 'Error parsing ZIP: ' + e.message;
+    console.error(e);
+  }
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+// Check for saved user on load
+const savedUser = localStorage.getItem('user');
+if (savedUser) {
+  currentUser = JSON.parse(savedUser);
+  updateAuthUI();
+}
+
 // Initialize
 loadProfile();
 renderExperience();
@@ -807,5 +1106,6 @@ renderSkills();
 setupAutoSave();
 console.log('State loaded:', state);
 </script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 </body>
 </html>
