@@ -101,7 +101,22 @@ button.danger:hover{background:#dc2626}
 
 <!-- Profile Panel -->
 <div class="panel active" id="profile">
-<h2>Personal Information</h2>
+
+<!-- Import Section -->
+<div class="card" style="margin-bottom:30px;background:linear-gradient(135deg,#1a1a2e,#16213e)">
+<h4 style="color:#8b5cf6;margin-bottom:15px">Import Existing Resume</h4>
+<p style="color:#888;font-size:0.9em;margin-bottom:15px">Paste your existing resume text below and click "Parse with AI" to auto-fill your profile</p>
+<textarea id="importResume" rows="6" placeholder="Paste your resume text here..."></textarea>
+<div style="margin-top:15px;display:flex;gap:10px">
+<button onclick="parseResumeWithAI()" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">Parse with AI</button>
+<span id="parseStatus" style="color:#888;line-height:45px"></span>
+</div>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+<h2 style="margin:0">Personal Information</h2>
+<span id="saveStatus" style="color:#00ff88;font-size:0.9em"></span>
+</div>
 <div class="grid">
 <div class="form-group">
 <label>Full Name</label>
@@ -697,12 +712,100 @@ function copyResume() {
   });
 }
 
+// Auto-save on input change
+function setupAutoSave() {
+  // Profile fields
+  ['fullName', 'email', 'phone', 'location', 'linkedin', 'github', 'portfolio', 'summary'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', () => {
+        state.profile[id] = el.value;
+        localStorage.setItem('resumeProfile', JSON.stringify(state.profile));
+        showSaveStatus();
+      });
+    }
+  });
+}
+
+function showSaveStatus() {
+  const status = document.getElementById('saveStatus');
+  if (status) {
+    status.textContent = 'Saved!';
+    setTimeout(() => { status.textContent = ''; }, 2000);
+  }
+}
+
+// Parse resume with AI
+async function parseResumeWithAI() {
+  const text = document.getElementById('importResume').value.trim();
+  if (!text) {
+    alert('Please paste your resume text first');
+    return;
+  }
+
+  const status = document.getElementById('parseStatus');
+  status.textContent = 'Parsing with AI...';
+
+  try {
+    const res = await fetch('/api/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resumeText: text })
+    });
+
+    if (!res.ok) throw new Error('Parse failed: ' + res.status);
+
+    const data = await res.json();
+
+    // Fill in profile fields
+    if (data.profile) {
+      Object.keys(data.profile).forEach(key => {
+        const el = document.getElementById(key);
+        if (el && data.profile[key]) {
+          el.value = data.profile[key];
+          state.profile[key] = data.profile[key];
+        }
+      });
+      localStorage.setItem('resumeProfile', JSON.stringify(state.profile));
+    }
+
+    // Add experience
+    if (data.experience && data.experience.length > 0) {
+      state.experience = data.experience;
+      localStorage.setItem('resumeExperience', JSON.stringify(state.experience));
+      renderExperience();
+    }
+
+    // Add education
+    if (data.education && data.education.length > 0) {
+      state.education = data.education;
+      localStorage.setItem('resumeEducation', JSON.stringify(state.education));
+      renderEducation();
+    }
+
+    // Add skills
+    if (data.skills) {
+      state.skills = { ...state.skills, ...data.skills };
+      localStorage.setItem('resumeSkills', JSON.stringify(state.skills));
+      renderSkills();
+    }
+
+    status.textContent = 'Parsed successfully!';
+    setTimeout(() => { status.textContent = ''; }, 3000);
+
+  } catch (e) {
+    status.textContent = 'Error: ' + e.message;
+  }
+}
+
 // Initialize
 loadProfile();
 renderExperience();
 renderEducation();
 renderCerts();
 renderSkills();
+setupAutoSave();
+console.log('State loaded:', state);
 </script>
 </body>
 </html>
