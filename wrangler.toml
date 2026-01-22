@@ -1,0 +1,20 @@
+name = "claude-resume"
+compatibility_date = "2024-01-01"
+pages_build_output_dir = "./"
+
+# KV Namespace for user data (existing)
+[[kv_namespaces]]
+binding = "RESUME_DATA"
+id = "fdca4507c8934158838d1fc9aafbf3b9"
+
+# D1 Database for structured queries (future migration)
+# Uncomment and configure when ready to migrate from KV to D1
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "claude-resume-db"
+# database_id = "YOUR_D1_DATABASE_ID"
+
+[vars]
+# Environment variables (set secrets via wrangler secret put)
+# ANTHROPIC_API_KEY = "set via wrangler secret put ANTHROPIC_API_KEY"
+# GOOGLE_CLIENT_ID = "your-google-client-id"
