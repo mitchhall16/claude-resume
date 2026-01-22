@@ -5,8 +5,8 @@ export async function onRequestPost(context) {
     const data = await request.json();
     const { profile, experience, education, certs, skills, jobDescription, targetRole, additionalInstructions } = data;
 
-    // Build the prompt
-    const prompt = buildPrompt(profile, experience, education, certs, skills, jobDescription, targetRole, additionalInstructions);
+    // Build the enhanced prompt based on ClaudeSkills approach
+    const prompt = buildEnhancedPrompt(profile, experience, education, certs, skills, jobDescription, targetRole, additionalInstructions);
 
     // Call Claude API
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -18,7 +18,7 @@ export async function onRequestPost(context) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 4096,
+        max_tokens: 8192,
         messages: [{
           role: 'user',
           content: prompt
@@ -29,7 +29,7 @@ export async function onRequestPost(context) {
     if (!response.ok) {
       const error = await response.text();
       console.error('Claude API error:', error);
-      return new Response(JSON.stringify({ error: 'Claude API error' }), {
+      return new Response(JSON.stringify({ error: 'Claude API error: ' + error }), {
         status: 500,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -39,7 +39,7 @@ export async function onRequestPost(context) {
     const content = result.content[0].text;
 
     // Parse the response
-    const parsed = parseResponse(content);
+    const parsed = parseEnhancedResponse(content);
 
     return new Response(JSON.stringify(parsed), {
       headers: { 'Content-Type': 'application/json' }
@@ -54,7 +54,7 @@ export async function onRequestPost(context) {
   }
 }
 
-function buildPrompt(profile, experience, education, certs, skills, jobDescription, targetRole, additionalInstructions) {
+function buildEnhancedPrompt(profile, experience, education, certs, skills, jobDescription, targetRole, additionalInstructions) {
   const experienceText = experience.map(exp => `
 **${exp.title}** at **${exp.company}** (${exp.location})
 ${exp.start} - ${exp.end || 'Present'}
@@ -68,23 +68,18 @@ ${edu.extras || ''}
 
   const certsText = certs.map(c => `• ${c.name} - ${c.org} (${c.date})`).join('\n');
 
-  const allSkills = [
-    ...(skills.technical || []),
-    ...(skills.soft || []),
-    ...(skills.tools || [])
-  ];
+  return `You are an expert resume customization system combining ATS optimization with recruiter-level strategic analysis. Follow this systematic 5-step process:
 
-  return `You are an expert resume writer and ATS (Applicant Tracking System) optimization specialist. Your task is to create a tailored, ATS-optimized resume based on the candidate's information and the job description.
+## CANDIDATE RESUME DATABANK
 
-## CANDIDATE INFORMATION
-
-**Name:** ${profile.fullName || 'Not provided'}
-**Email:** ${profile.email || ''}
-**Phone:** ${profile.phone || ''}
-**Location:** ${profile.location || ''}
-**LinkedIn:** ${profile.linkedin || ''}
-**GitHub:** ${profile.github || ''}
-**Portfolio:** ${profile.portfolio || ''}
+**Personal Information:**
+- Name: ${profile.fullName || 'Not provided'}
+- Email: ${profile.email || ''}
+- Phone: ${profile.phone || ''}
+- Location: ${profile.location || ''}
+- LinkedIn: ${profile.linkedin || ''}
+- GitHub: ${profile.github || ''}
+- Portfolio: ${profile.portfolio || ''}
 
 **Professional Summary (base version):**
 ${profile.summary || 'Not provided'}
@@ -101,70 +96,153 @@ ${certsText || 'None'}
 **Technical Skills:** ${skills.technical?.join(', ') || 'None listed'}
 **Soft Skills:** ${skills.soft?.join(', ') || 'None listed'}
 **Tools & Technologies:** ${skills.tools?.join(', ') || 'None listed'}
-**Interests:** ${skills.interests?.join(', ') || 'None listed'}
+**Personal Interests:** ${skills.interests?.join(', ') || 'None listed'}
 
-## JOB DESCRIPTION
+---
+
+## TARGET JOB DESCRIPTION
+
 ${jobDescription}
 
-${targetRole ? `## TARGET ROLE: ${targetRole}` : ''}
+${targetRole ? `**Target Role Override:** ${targetRole}` : ''}
+${additionalInstructions ? `**Additional Instructions:** ${additionalInstructions}` : ''}
 
-${additionalInstructions ? `## ADDITIONAL INSTRUCTIONS: ${additionalInstructions}` : ''}
+---
 
-## YOUR TASK
+## YOUR 5-STEP PROCESS
 
-1. **Analyze the job description** - Extract key requirements, skills, and keywords that ATS systems will scan for.
+### STEP 1: JOB ANALYSIS
+Parse the job description and extract:
+- Required technical skills
+- Preferred/nice-to-have skills
+- Key responsibilities
+- Experience level required
+- Industry-specific terminology
+- Company values and culture keywords
 
-2. **Create an ATS-optimized resume** that:
-   - Uses exact keywords and phrases from the job description
-   - Tailors the professional summary specifically for this role
-   - Reorders and emphasizes relevant experience
-   - Highlights matching skills prominently
-   - Uses standard section headers (Professional Summary, Experience, Education, Skills, Certifications)
-   - Uses clean, ATS-friendly formatting
-   - Quantifies achievements where possible
+### STEP 2: EXPERIENCE MINING & RELEVANCE SCORING
+For EACH experience in the candidate's databank:
+- Calculate a relevance score (0-10) based on:
+  - Technical skill alignment (40% weight)
+  - Responsibility alignment (30% weight)
+  - Industry/domain relevance (20% weight)
+  - Impact and quantified achievements (10% weight)
+- Rank all experiences by relevance
+- Select top 2-4 bullet points per role that best match the job
 
-3. **Provide analysis** including:
-   - ATS match score (0-100%)
-   - Keywords successfully matched
-   - Important keywords to consider adding (if candidate has the experience but didn't mention it)
+### STEP 3: COMPANY CONTEXT
+Based on the job description, infer:
+- Company's strategic priorities
+- Department goals
+- Technology preferences
+- Cultural values
 
-## RESPONSE FORMAT
+### STEP 4: CONTENT OPTIMIZATION
+Create the tailored resume with:
+- Rewritten professional summary specific to this role
+- Experiences ordered by relevance (not just chronology)
+- Bullet points using keywords from the job description
+- Skills section prioritized by job requirements
+- Action verbs: Led, Developed, Increased, Reduced, Implemented, Designed, Built, Managed, Delivered, Optimized
 
-Respond in this exact format:
+Bullet Point Format:
+• [Action Verb] [Specific Achievement] using [Technology/Method] resulting in [Quantified Impact]
+
+### STEP 5: RECRUITER ANALYSIS
+Simulate a recruiter's perspective:
+- Overall fit score (0-100)
+- Key strengths that match
+- Concerns or gaps
+- Questions they'd likely ask
+- Interview preparation tips
+- Honest recommendation
+
+---
+
+## REQUIRED OUTPUT FORMAT
+
+Respond in EXACTLY this format with these section markers:
+
+---RELEVANCE_RANKINGS---
+[For each experience, show: Company - Role: X/10 relevance score with brief reason]
 
 ---ATS_SCORE---
-[number between 0-100]
+[Single number 0-100 representing overall ATS match percentage]
 
 ---MATCHED_KEYWORDS---
-[comma-separated list of keywords from job description that appear in the resume]
+[Comma-separated list of job description keywords successfully incorporated]
 
 ---MISSING_KEYWORDS---
-[comma-separated list of important keywords candidate might want to add if they have that experience]
+[Comma-separated list of important keywords candidate could add if they have the experience]
+
+---TAILORED_SUMMARY---
+[2-3 sentence professional summary rewritten specifically for this role]
 
 ---RESUME---
-[The complete, formatted resume text ready to copy/paste. Use plain text formatting that works in any document editor.]
+[Complete ATS-optimized resume in clean plain text format ready to copy/paste]
+
+---RECRUITER_ASSESSMENT---
+**Fit Score:** [X/100]
+**Recommendation:** [Strong Match / Good Match / Potential Match / Weak Match]
+
+**Strengths:**
+• [Strength 1]
+• [Strength 2]
+• [Strength 3]
+
+**Concerns:**
+• [Concern 1]
+• [Concern 2]
+
+**Gap Analysis:**
+[Honest assessment of missing qualifications and how to address them]
+
+**Interview Questions to Prepare For:**
+1. [Question about potential weakness]
+2. [Question about specific experience]
+3. [Behavioral question relevant to role]
+
+**Talking Points:**
+• [Key achievement to emphasize]
+• [Transferable skill to highlight]
+• [Story that demonstrates fit]
+
+---END---
 `;
 }
 
-function parseResponse(content) {
+function parseEnhancedResponse(content) {
+  // Extract each section
+  const relevanceMatch = content.match(/---RELEVANCE_RANKINGS---\s*([\s\S]*?)(?=---ATS_SCORE---|$)/);
   const scoreMatch = content.match(/---ATS_SCORE---\s*(\d+)/);
   const matchedMatch = content.match(/---MATCHED_KEYWORDS---\s*([^\n]+(?:\n(?!---)[^\n]+)*)/);
   const missingMatch = content.match(/---MISSING_KEYWORDS---\s*([^\n]+(?:\n(?!---)[^\n]+)*)/);
-  const resumeMatch = content.match(/---RESUME---\s*([\s\S]+)$/);
+  const summaryMatch = content.match(/---TAILORED_SUMMARY---\s*([\s\S]*?)(?=---RESUME---|$)/);
+  const resumeMatch = content.match(/---RESUME---\s*([\s\S]*?)(?=---RECRUITER_ASSESSMENT---|$)/);
+  const recruiterMatch = content.match(/---RECRUITER_ASSESSMENT---\s*([\s\S]*?)(?=---END---|$)/);
 
   const score = scoreMatch ? parseInt(scoreMatch[1]) : 75;
+
   const matchedKeywords = matchedMatch
-    ? matchedMatch[1].trim().split(',').map(k => k.trim()).filter(k => k)
+    ? matchedMatch[1].trim().split(',').map(k => k.trim()).filter(k => k && k.length < 50)
     : [];
+
   const missingKeywords = missingMatch
-    ? missingMatch[1].trim().split(',').map(k => k.trim()).filter(k => k)
+    ? missingMatch[1].trim().split(',').map(k => k.trim()).filter(k => k && k.length < 50)
     : [];
+
+  const relevanceRankings = relevanceMatch ? relevanceMatch[1].trim() : '';
+  const tailoredSummary = summaryMatch ? summaryMatch[1].trim() : '';
   const resume = resumeMatch ? resumeMatch[1].trim() : content;
+  const recruiterAssessment = recruiterMatch ? recruiterMatch[1].trim() : '';
 
   return {
     score,
     matchedKeywords,
     missingKeywords,
-    resume
+    relevanceRankings,
+    tailoredSummary,
+    resume,
+    recruiterAssessment
   };
 }

@@ -262,15 +262,39 @@ button.danger:hover{background:#dc2626}
 <p>Analyzing job description and tailoring your resume...</p>
 </div>
 <div class="output-section" id="output" style="display:none">
+
+<!-- Score Card -->
 <div class="score-card">
 <div class="score" id="atsScore">--</div>
 <div class="score-label">ATS Match Score</div>
 <div class="keywords" id="keywordAnalysis"></div>
 </div>
-<div style="position:relative">
-<button class="copy-btn secondary" onclick="copyResume()">Copy to Clipboard</button>
+
+<!-- Relevance Rankings -->
+<div class="card" style="margin-bottom:20px">
+<h4 style="color:#8b5cf6;margin-bottom:15px">Experience Relevance Rankings</h4>
+<div id="relevanceRankings" style="white-space:pre-wrap;color:#aaa"></div>
+</div>
+
+<!-- Tailored Summary -->
+<div class="card" style="margin-bottom:20px">
+<h4 style="color:#6366f1;margin-bottom:15px">Tailored Professional Summary</h4>
+<div id="tailoredSummary" style="font-style:italic;color:#ddd"></div>
+</div>
+
+<!-- Resume Output -->
+<div class="card" style="margin-bottom:20px;position:relative">
+<h4 style="color:#00ff88;margin-bottom:15px">ATS-Optimized Resume</h4>
+<button class="copy-btn secondary" onclick="copyResume()" style="position:absolute;top:15px;right:15px">Copy Resume</button>
 <div class="resume-output" id="resumeOutput"></div>
 </div>
+
+<!-- Recruiter Assessment -->
+<div class="card" style="background:linear-gradient(135deg,#1a1a2e,#16213e)">
+<h4 style="color:#f59e0b;margin-bottom:15px">Recruiter Assessment</h4>
+<div id="recruiterAssessment" style="white-space:pre-wrap;line-height:1.8"></div>
+</div>
+
 </div>
 </div>
 </div>
@@ -654,7 +678,10 @@ async function generateResume() {
         ${data.missingKeywords.map(k => `<span class="keyword-missing">${k}</span>`).join(', ')}
       </div>
     `;
+    document.getElementById('relevanceRankings').textContent = data.relevanceRankings || 'Not available';
+    document.getElementById('tailoredSummary').textContent = data.tailoredSummary || 'Not available';
     document.getElementById('resumeOutput').textContent = data.resume;
+    document.getElementById('recruiterAssessment').innerHTML = (data.recruiterAssessment || 'Not available').replace(/\n/g, '<br>');
     document.getElementById('output').style.display = 'block';
   } catch (e) {
     alert('Error generating resume: ' + e.message);
