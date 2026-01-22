@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Resume - AI-Powered ATS Resume Builder</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e0e0e0;line-height:1.6}
+.container{max-width:1400px;margin:0 auto;padding:20px}
+header{text-align:center;padding:30px 0;border-bottom:1px solid #222}
+h1{font-size:2.5em;background:linear-gradient(135deg,#6366f1,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:10px}
+.subtitle{color:#888;font-size:1.1em}
+.tabs{display:flex;gap:10px;margin:30px 0;flex-wrap:wrap}
+.tab{padding:12px 24px;background:#1a1a1a;border:1px solid #333;border-radius:8px;cursor:pointer;transition:all 0.2s}
+.tab:hover{border-color:#6366f1}
+.tab.active{background:#6366f1;border-color:#6366f1;color:#fff}
+.panel{display:none;background:#111;border:1px solid #222;border-radius:12px;padding:30px}
+.panel.active{display:block}
+h2{font-size:1.5em;margin-bottom:20px;color:#fff}
+h3{font-size:1.2em;margin:20px 0 15px;color:#a5a5a5}
+.form-group{margin-bottom:20px}
+label{display:block;margin-bottom:8px;color:#888;font-size:0.9em}
+input,textarea,select{width:100%;padding:12px;background:#1a1a1a;border:1px solid #333;border-radius:8px;color:#fff;font-size:1em}
+input:focus,textarea:focus,select:focus{outline:none;border-color:#6366f1}
+textarea{min-height:120px;resize:vertical;font-family:inherit}
+button{padding:12px 24px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:1em;transition:all 0.2s}
+button:hover{background:#5558e3}
+button.secondary{background:#333}
+button.secondary:hover{background:#444}
+button.danger{background:#ef4444}
+button.danger:hover{background:#dc2626}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+.card{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:20px}
+.card h4{margin-bottom:15px;color:#fff}
+.item{background:#222;border-radius:8px;padding:15px;margin-bottom:10px;position:relative}
+.item-header{display:flex;justify-content:space-between;align-items:start;margin-bottom:10px}
+.item-title{font-weight:600;color:#fff}
+.item-subtitle{color:#888;font-size:0.9em}
+.item-actions{display:flex;gap:8px}
+.item-actions button{padding:5px 10px;font-size:0.8em}
+.bullets{margin-top:10px}
+.bullet{display:flex;gap:10px;margin-bottom:8px;align-items:start}
+.bullet-dot{color:#6366f1;margin-top:2px}
+.add-btn{width:100%;padding:15px;background:#1a1a1a;border:2px dashed #333;border-radius:8px;color:#888;cursor:pointer;transition:all 0.2s}
+.add-btn:hover{border-color:#6366f1;color:#6366f1}
+.tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.tag{background:#333;padding:6px 12px;border-radius:20px;font-size:0.85em;display:flex;align-items:center;gap:6px}
+.tag-remove{cursor:pointer;color:#888}
+.tag-remove:hover{color:#ef4444}
+.tag-input{display:flex;gap:10px;margin-top:10px}
+.tag-input input{flex:1}
+.tag-input button{white-space:nowrap}
+.resources-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:15px}
+.resource-card{background:#1a1a1a;border:1px solid #333;border-radius:10px;padding:20px}
+.resource-card h4{color:#6366f1;margin-bottom:10px}
+.resource-list{list-style:none}
+.resource-list li{padding:8px 0;border-bottom:1px solid #222;color:#aaa}
+.resource-list li:last-child{border-bottom:none}
+.generate-section{text-align:center;padding:40px}
+.generate-section h2{margin-bottom:20px}
+.generate-btn{font-size:1.2em;padding:16px 40px;background:linear-gradient(135deg,#6366f1,#8b5cf6)}
+.generate-btn:hover{opacity:0.9}
+.output-section{margin-top:30px}
+.score-card{background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid #333;border-radius:12px;padding:30px;text-align:center;margin-bottom:20px}
+.score{font-size:4em;font-weight:700;background:linear-gradient(135deg,#00ff88,#00cc6a);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.score-label{color:#888;margin-top:10px}
+.keywords{margin-top:20px}
+.keyword-match{color:#00ff88}
+.keyword-missing{color:#ff6b6b}
+.resume-output{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:30px;white-space:pre-wrap;font-family:'Courier New',monospace;line-height:1.8}
+.copy-btn{position:absolute;top:15px;right:15px}
+.loading{display:none;text-align:center;padding:40px}
+.loading.active{display:block}
+.spinner{width:50px;height:50px;border:4px solid #333;border-top-color:#6366f1;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center}
+.modal.active{display:flex}
+.modal-content{background:#111;border:1px solid #333;border-radius:12px;padding:30px;width:90%;max-width:600px;max-height:90vh;overflow-y:auto}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-close{background:none;border:none;color:#888;font-size:1.5em;cursor:pointer}
+.status{padding:15px;border-radius:8px;margin-bottom:20px;display:none}
+.status.success{display:block;background:rgba(0,255,136,0.1);border:1px solid #00ff88;color:#00ff88}
+.status.error{display:block;background:rgba(255,107,107,0.1);border:1px solid #ff6b6b;color:#ff6b6b}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>Claude Resume</h1>
+<p class="subtitle">AI-Powered ATS Resume Builder - Tailored for Every Job</p>
+</header>
+
+<div class="tabs">
+<div class="tab active" data-tab="profile">Profile</div>
+<div class="tab" data-tab="experience">Experience</div>
+<div class="tab" data-tab="skills">Skills & Interests</div>
+<div class="tab" data-tab="resources">Best Practices</div>
+<div class="tab" data-tab="generate">Generate Resume</div>
+</div>
+
+<!-- Profile Panel -->
+<div class="panel active" id="profile">
+<h2>Personal Information</h2>
+<div class="grid">
+<div class="form-group">
+<label>Full Name</label>
+<input type="text" id="fullName" placeholder="John Doe">
+</div>
+<div class="form-group">
+<label>Email</label>
+<input type="email" id="email" placeholder="john@example.com">
+</div>
+<div class="form-group">
+<label>Phone</label>
+<input type="tel" id="phone" placeholder="+1 (555) 123-4567">
+</div>
+<div class="form-group">
+<label>Location</label>
+<input type="text" id="location" placeholder="New York, NY">
+</div>
+<div class="form-group">
+<label>LinkedIn URL</label>
+<input type="url" id="linkedin" placeholder="https://linkedin.com/in/johndoe">
+</div>
+<div class="form-group">
+<label>GitHub URL</label>
+<input type="url" id="github" placeholder="https://github.com/johndoe">
+</div>
+<div class="form-group">
+<label>Portfolio/Website</label>
+<input type="url" id="portfolio" placeholder="https://johndoe.com">
+</div>
+</div>
+<div class="form-group">
+<label>Professional Summary (Master version - will be tailored per job)</label>
+<textarea id="summary" placeholder="Experienced software engineer with 5+ years..."></textarea>
+</div>
+<button onclick="saveProfile()">Save Profile</button>
+</div>
+
+<!-- Experience Panel -->
+<div class="panel" id="experience">
+<h2>Work Experience</h2>
+<div id="experienceList"></div>
+<div class="add-btn" onclick="openModal('experience')">+ Add Work Experience</div>
+
+<h2 style="margin-top:40px">Education</h2>
+<div id="educationList"></div>
+<div class="add-btn" onclick="openModal('education')">+ Add Education</div>
+
+<h2 style="margin-top:40px">Certifications</h2>
+<div id="certsList"></div>
+<div class="add-btn" onclick="openModal('cert')">+ Add Certification</div>
+</div>
+
+<!-- Skills Panel -->
+<div class="panel" id="skills">
+<div class="grid">
+<div class="card">
+<h4>Technical Skills</h4>
+<div id="technicalSkills" class="tags"></div>
+<div class="tag-input">
+<input type="text" id="techSkillInput" placeholder="e.g., Python, React, AWS">
+<button onclick="addSkill('technical')">Add</button>
+</div>
+</div>
+<div class="card">
+<h4>Soft Skills</h4>
+<div id="softSkills" class="tags"></div>
+<div class="tag-input">
+<input type="text" id="softSkillInput" placeholder="e.g., Leadership, Communication">
+<button onclick="addSkill('soft')">Add</button>
+</div>
+</div>
+<div class="card">
+<h4>Tools & Technologies</h4>
+<div id="tools" class="tags"></div>
+<div class="tag-input">
+<input type="text" id="toolInput" placeholder="e.g., Git, Docker, Jira">
+<button onclick="addSkill('tools')">Add</button>
+</div>
+</div>
+<div class="card">
+<h4>Interests & Hobbies</h4>
+<p style="color:#888;font-size:0.9em;margin-bottom:10px">Personal touches that make you memorable</p>
+<div id="interests" class="tags"></div>
+<div class="tag-input">
+<input type="text" id="interestInput" placeholder="e.g., Open source, Rock climbing">
+<button onclick="addSkill('interests')">Add</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Resources Panel -->
+<div class="panel" id="resources">
+<h2>ATS Best Practices & Resources</h2>
+<div class="resources-grid">
+<div class="resource-card">
+<h4>Resume Format</h4>
+<ul class="resource-list">
+<li>Use standard section headers (Experience, Education, Skills)</li>
+<li>Stick to common fonts (Arial, Calibri, Times New Roman)</li>
+<li>Avoid tables, graphics, and complex formatting</li>
+<li>Use .docx or .pdf format</li>
+<li>Keep to 1-2 pages maximum</li>
+</ul>
+</div>
+<div class="resource-card">
+<h4>Keywords Strategy</h4>
+<ul class="resource-list">
+<li>Mirror exact phrases from job description</li>
+<li>Include both acronyms and full terms (SQL, Structured Query Language)</li>
+<li>Use industry-standard job titles</li>
+<li>Include required certifications by name</li>
+</ul>
+</div>
+<div class="resource-card">
+<h4>Power Action Verbs</h4>
+<ul class="resource-list">
+<li><strong>Led</strong> - Led team of 5 engineers...</li>
+<li><strong>Developed</strong> - Developed microservices...</li>
+<li><strong>Increased</strong> - Increased revenue by 40%...</li>
+<li><strong>Reduced</strong> - Reduced costs by $50K...</li>
+<li><strong>Implemented</strong> - Implemented CI/CD pipeline...</li>
+</ul>
+</div>
+<div class="resource-card">
+<h4>Metrics That Matter</h4>
+<ul class="resource-list">
+<li>Revenue impact ($, %)</li>
+<li>Time saved (hours, days)</li>
+<li>Team size managed</li>
+<li>User/customer numbers</li>
+<li>Performance improvements (%)</li>
+</ul>
+</div>
+</div>
+</div>
+
+<!-- Generate Panel -->
+<div class="panel" id="generate">
+<h2>Generate Tailored Resume</h2>
+<div class="form-group">
+<label>Paste Job Description</label>
+<textarea id="jobDescription" rows="10" placeholder="Paste the full job description here..."></textarea>
+</div>
+<div class="form-group">
+<label>Target Role (optional override)</label>
+<input type="text" id="targetRole" placeholder="e.g., Senior Software Engineer">
+</div>
+<div class="form-group">
+<label>Additional Instructions (optional)</label>
+<textarea id="additionalInstructions" rows="3" placeholder="e.g., Emphasize leadership experience, downplay older roles..."></textarea>
+</div>
+<div class="generate-section">
+<button class="generate-btn" onclick="generateResume()">Generate ATS-Optimized Resume</button>
+</div>
+<div class="loading" id="loading">
+<div class="spinner"></div>
+<p>Analyzing job description and tailoring your resume...</p>
+</div>
+<div class="output-section" id="output" style="display:none">
+<div class="score-card">
+<div class="score" id="atsScore">--</div>
+<div class="score-label">ATS Match Score</div>
+<div class="keywords" id="keywordAnalysis"></div>
+</div>
+<div style="position:relative">
+<button class="copy-btn secondary" onclick="copyResume()">Copy to Clipboard</button>
+<div class="resume-output" id="resumeOutput"></div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Experience Modal -->
+<div class="modal" id="experienceModal">
+<div class="modal-content">
+<div class="modal-header">
+<h3>Add Work Experience</h3>
+<button class="modal-close" onclick="closeModal('experience')">&times;</button>
+</div>
+<div class="form-group">
+<label>Job Title</label>
+<input type="text" id="expTitle" placeholder="Software Engineer">
+</div>
+<div class="form-group">
+<label>Company</label>
+<input type="text" id="expCompany" placeholder="Google">
+</div>
+<div class="form-group">
+<label>Location</label>
+<input type="text" id="expLocation" placeholder="Mountain View, CA">
+</div>
+<div class="grid">
+<div class="form-group">
+<label>Start Date</label>
+<input type="month" id="expStart">
+</div>
+<div class="form-group">
+<label>End Date (leave empty for current)</label>
+<input type="month" id="expEnd">
+</div>
+</div>
+<div class="form-group">
+<label>Bullet Points (one per line - use metrics!)</label>
+<textarea id="expBullets" rows="6" placeholder="Led development of microservices architecture serving 1M+ users
+Reduced API response time by 40% through caching optimization
+Mentored 3 junior developers, improving team velocity by 25%"></textarea>
+</div>
+<button onclick="saveExperience()">Save Experience</button>
+</div>
+</div>
+
+<!-- Education Modal -->
+<div class="modal" id="educationModal">
+<div class="modal-content">
+<div class="modal-header">
+<h3>Add Education</h3>
+<button class="modal-close" onclick="closeModal('education')">&times;</button>
+</div>
+<div class="form-group">
+<label>Degree</label>
+<input type="text" id="eduDegree" placeholder="Bachelor of Science in Computer Science">
+</div>
+<div class="form-group">
+<label>Institution</label>
+<input type="text" id="eduSchool" placeholder="University of California, Berkeley">
+</div>
+<div class="form-group">
+<label>Location</label>
+<input type="text" id="eduLocation" placeholder="Berkeley, CA">
+</div>
+<div class="grid">
+<div class="form-group">
+<label>Start Year</label>
+<input type="number" id="eduStart" placeholder="2016">
+</div>
+<div class="form-group">
+<label>End Year</label>
+<input type="number" id="eduEnd" placeholder="2020">
+</div>
+</div>
+<div class="form-group">
+<label>GPA (optional)</label>
+<input type="text" id="eduGPA" placeholder="3.8/4.0">
+</div>
+<div class="form-group">
+<label>Relevant Coursework / Honors (optional)</label>
+<textarea id="eduExtras" rows="3" placeholder="Dean's List, Data Structures, Machine Learning..."></textarea>
+</div>
+<button onclick="saveEducation()">Save Education</button>
+</div>
+</div>
+
+<!-- Certification Modal -->
+<div class="modal" id="certModal">
+<div class="modal-content">
+<div class="modal-header">
+<h3>Add Certification</h3>
+<button class="modal-close" onclick="closeModal('cert')">&times;</button>
+</div>
+<div class="form-group">
+<label>Certification Name</label>
+<input type="text" id="certName" placeholder="AWS Solutions Architect">
+</div>
+<div class="form-group">
+<label>Issuing Organization</label>
+<input type="text" id="certOrg" placeholder="Amazon Web Services">
+</div>
+<div class="form-group">
+<label>Date Obtained</label>
+<input type="month" id="certDate">
+</div>
+<div class="form-group">
+<label>Credential ID (optional)</label>
+<input type="text" id="certId" placeholder="ABC123XYZ">
+</div>
+<button onclick="saveCert()">Save Certification</button>
+</div>
+</div>
+
+<script>
+// State
+const state = {
+  profile: JSON.parse(localStorage.getItem('resumeProfile') || '{}'),
+  experience: JSON.parse(localStorage.getItem('resumeExperience') || '[]'),
+  education: JSON.parse(localStorage.getItem('resumeEducation') || '[]'),
+  certs: JSON.parse(localStorage.getItem('resumeCerts') || '[]'),
+  skills: JSON.parse(localStorage.getItem('resumeSkills') || '{"technical":[],"soft":[],"tools":[],"interests":[]}')
+};
+
+// Tab switching
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById(tab.dataset.tab).classList.add('active');
+  });
+});
+
+// Load saved data into forms
+function loadProfile() {
+  if (state.profile.fullName) document.getElementById('fullName').value = state.profile.fullName;
+  if (state.profile.email) document.getElementById('email').value = state.profile.email;
+  if (state.profile.phone) document.getElementById('phone').value = state.profile.phone;
+  if (state.profile.location) document.getElementById('location').value = state.profile.location;
+  if (state.profile.linkedin) document.getElementById('linkedin').value = state.profile.linkedin;
+  if (state.profile.github) document.getElementById('github').value = state.profile.github;
+  if (state.profile.portfolio) document.getElementById('portfolio').value = state.profile.portfolio;
+  if (state.profile.summary) document.getElementById('summary').value = state.profile.summary;
+}
+
+function saveProfile() {
+  state.profile = {
+    fullName: document.getElementById('fullName').value,
+    email: document.getElementById('email').value,
+    phone: document.getElementById('phone').value,
+    location: document.getElementById('location').value,
+    linkedin: document.getElementById('linkedin').value,
+    github: document.getElementById('github').value,
+    portfolio: document.getElementById('portfolio').value,
+    summary: document.getElementById('summary').value
+  };
+  localStorage.setItem('resumeProfile', JSON.stringify(state.profile));
+  alert('Profile saved!');
+}
+
+// Modal functions
+function openModal(type) {
+  document.getElementById(type + 'Modal').classList.add('active');
+}
+
+function closeModal(type) {
+  document.getElementById(type + 'Modal').classList.remove('active');
+}
+
+// Experience functions
+function renderExperience() {
+  const list = document.getElementById('experienceList');
+  list.innerHTML = state.experience.map((exp, i) => `
+    <div class="item">
+      <div class="item-header">
+        <div>
+          <div class="item-title">${exp.title} at ${exp.company}</div>
+          <div class="item-subtitle">${exp.location} | ${exp.start} - ${exp.end || 'Present'}</div>
+        </div>
+        <div class="item-actions">
+          <button class="secondary" onclick="editExperience(${i})">Edit</button>
+          <button class="danger" onclick="deleteExperience(${i})">Delete</button>
+        </div>
+      </div>
+      <div class="bullets">
+        ${exp.bullets.map(b => `<div class="bullet"><span class="bullet-dot">•</span><span>${b}</span></div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function saveExperience() {
+  const exp = {
+    title: document.getElementById('expTitle').value,
+    company: document.getElementById('expCompany').value,
+    location: document.getElementById('expLocation').value,
+    start: document.getElementById('expStart').value,
+    end: document.getElementById('expEnd').value,
+    bullets: document.getElementById('expBullets').value.split('\n').filter(b => b.trim())
+  };
+  state.experience.push(exp);
+  localStorage.setItem('resumeExperience', JSON.stringify(state.experience));
+  closeModal('experience');
+  renderExperience();
+  // Clear form
+  ['expTitle', 'expCompany', 'expLocation', 'expStart', 'expEnd', 'expBullets'].forEach(id => document.getElementById(id).value = '');
+}
+
+function deleteExperience(i) {
+  if (confirm('Delete this experience?')) {
+    state.experience.splice(i, 1);
+    localStorage.setItem('resumeExperience', JSON.stringify(state.experience));
+    renderExperience();
+  }
+}
+
+// Education functions
+function renderEducation() {
+  const list = document.getElementById('educationList');
+  list.innerHTML = state.education.map((edu, i) => `
+    <div class="item">
+      <div class="item-header">
+        <div>
+          <div class="item-title">${edu.degree}</div>
+          <div class="item-subtitle">${edu.school} | ${edu.start} - ${edu.end}${edu.gpa ? ' | GPA: ' + edu.gpa : ''}</div>
+        </div>
+        <div class="item-actions">
+          <button class="danger" onclick="deleteEducation(${i})">Delete</button>
+        </div>
+      </div>
+      ${edu.extras ? `<div style="color:#888;margin-top:10px">${edu.extras}</div>` : ''}
+    </div>
+  `).join('');
+}
+
+function saveEducation() {
+  const edu = {
+    degree: document.getElementById('eduDegree').value,
+    school: document.getElementById('eduSchool').value,
+    location: document.getElementById('eduLocation').value,
+    start: document.getElementById('eduStart').value,
+    end: document.getElementById('eduEnd').value,
+    gpa: document.getElementById('eduGPA').value,
+    extras: document.getElementById('eduExtras').value
+  };
+  state.education.push(edu);
+  localStorage.setItem('resumeEducation', JSON.stringify(state.education));
+  closeModal('education');
+  renderEducation();
+  ['eduDegree', 'eduSchool', 'eduLocation', 'eduStart', 'eduEnd', 'eduGPA', 'eduExtras'].forEach(id => document.getElementById(id).value = '');
+}
+
+function deleteEducation(i) {
+  if (confirm('Delete this education?')) {
+    state.education.splice(i, 1);
+    localStorage.setItem('resumeEducation', JSON.stringify(state.education));
+    renderEducation();
+  }
+}
+
+// Certification functions
+function renderCerts() {
+  const list = document.getElementById('certsList');
+  list.innerHTML = state.certs.map((cert, i) => `
+    <div class="item">
+      <div class="item-header">
+        <div>
+          <div class="item-title">${cert.name}</div>
+          <div class="item-subtitle">${cert.org} | ${cert.date}${cert.id ? ' | ID: ' + cert.id : ''}</div>
+        </div>
+        <div class="item-actions">
+          <button class="danger" onclick="deleteCert(${i})">Delete</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function saveCert() {
+  const cert = {
+    name: document.getElementById('certName').value,
+    org: document.getElementById('certOrg').value,
+    date: document.getElementById('certDate').value,
+    id: document.getElementById('certId').value
+  };
+  state.certs.push(cert);
+  localStorage.setItem('resumeCerts', JSON.stringify(state.certs));
+  closeModal('cert');
+  renderCerts();
+  ['certName', 'certOrg', 'certDate', 'certId'].forEach(id => document.getElementById(id).value = '');
+}
+
+function deleteCert(i) {
+  if (confirm('Delete this certification?')) {
+    state.certs.splice(i, 1);
+    localStorage.setItem('resumeCerts', JSON.stringify(state.certs));
+    renderCerts();
+  }
+}
+
+// Skills functions
+function renderSkills() {
+  ['technical', 'soft', 'tools', 'interests'].forEach(type => {
+    const container = document.getElementById(type === 'technical' ? 'technicalSkills' : type === 'soft' ? 'softSkills' : type);
+    const skills = state.skills[type] || [];
+    container.innerHTML = skills.map((s, i) => `
+      <span class="tag">${s}<span class="tag-remove" onclick="removeSkill('${type}', ${i})">&times;</span></span>
+    `).join('');
+  });
+}
+
+function addSkill(type) {
+  const inputId = type === 'technical' ? 'techSkillInput' : type === 'soft' ? 'softSkillInput' : type === 'tools' ? 'toolInput' : 'interestInput';
+  const input = document.getElementById(inputId);
+  const value = input.value.trim();
+  if (value) {
+    if (!state.skills[type]) state.skills[type] = [];
+    state.skills[type].push(value);
+    localStorage.setItem('resumeSkills', JSON.stringify(state.skills));
+    renderSkills();
+    input.value = '';
+  }
+}
+
+function removeSkill(type, i) {
+  state.skills[type].splice(i, 1);
+  localStorage.setItem('resumeSkills', JSON.stringify(state.skills));
+  renderSkills();
+}
+
+// Enter key for skill inputs
+['techSkillInput', 'softSkillInput', 'toolInput', 'interestInput'].forEach(id => {
+  document.getElementById(id).addEventListener('keypress', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const type = id === 'techSkillInput' ? 'technical' : id === 'softSkillInput' ? 'soft' : id === 'toolInput' ? 'tools' : 'interests';
+      addSkill(type);
+    }
+  });
+});
+
+// Generate resume
+async function generateResume() {
+  const jobDescription = document.getElementById('jobDescription').value.trim();
+  if (!jobDescription) {
+    alert('Please paste a job description');
+    return;
+  }
+
+  document.getElementById('loading').classList.add('active');
+  document.getElementById('output').style.display = 'none';
+
+  const payload = {
+    profile: state.profile,
+    experience: state.experience,
+    education: state.education,
+    certs: state.certs,
+    skills: state.skills,
+    jobDescription: jobDescription,
+    targetRole: document.getElementById('targetRole').value,
+    additionalInstructions: document.getElementById('additionalInstructions').value
+  };
+
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) throw new Error('API error: ' + res.status);
+
+    const data = await res.json();
+
+    document.getElementById('atsScore').textContent = data.score + '%';
+    document.getElementById('keywordAnalysis').innerHTML = `
+      <div style="margin-top:15px">
+        <strong>Matched Keywords:</strong>
+        ${data.matchedKeywords.map(k => `<span class="keyword-match">${k}</span>`).join(', ')}
+      </div>
+      <div style="margin-top:10px">
+        <strong>Consider Adding:</strong>
+        ${data.missingKeywords.map(k => `<span class="keyword-missing">${k}</span>`).join(', ')}
+      </div>
+    `;
+    document.getElementById('resumeOutput').textContent = data.resume;
+    document.getElementById('output').style.display = 'block';
+  } catch (e) {
+    alert('Error generating resume: ' + e.message);
+  } finally {
+    document.getElementById('loading').classList.remove('active');
+  }
+}
+
+function copyResume() {
+  const text = document.getElementById('resumeOutput').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Copied to clipboard!');
+  });
+}
+
+// Initialize
+loadProfile();
+renderExperience();
+renderEducation();
+renderCerts();
+renderSkills();
+</script>
+</body>
+</html>
