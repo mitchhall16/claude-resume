@@ -243,7 +243,17 @@ Return ONLY a JSON array of strings:
   let content = result.content[0].text;
   content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
 
-  const enhanced = JSON.parse(content);
+  // Extract just the JSON array from the response
+  const arrayMatch = content.match(/\[[\s\S]*\]/);
+  if (!arrayMatch) {
+    throw new Error('No JSON array found in response');
+  }
+
+  let jsonStr = arrayMatch[0];
+  // Fix common JSON issues: trailing commas before ]
+  jsonStr = jsonStr.replace(/,\s*\]/g, ']');
+
+  const enhanced = JSON.parse(jsonStr);
 
   return new Response(JSON.stringify({ bullets: enhanced }), {
     headers: { 'Content-Type': 'application/json' }
