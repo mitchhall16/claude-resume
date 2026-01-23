@@ -27,7 +27,7 @@ ${(exp.bullets || []).map(b => '• ' + b).join('\n')}
 
     // Build projects summary
     const projectsText = (projects || []).slice(0, 3).map(p =>
-      `**${p.name}**: ${p.shortDesc || ''} (${p.tech || ''})`
+      `**${p.name}**: ${p.shortDesc || ''} (${p.tech || ''})${p.context ? `\n  Why I built this: ${p.context}` : ''}`
     ).join('\n');
 
     // Length instructions

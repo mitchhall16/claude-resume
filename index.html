@@ -468,6 +468,11 @@ Achieved 99.9% uptime with automated CI/CD pipeline
 Reduced page load time by 60% through optimization"></textarea>
 </div>
 <div class="form-group">
+<label>Why I Built This (context for Q&A)</label>
+<textarea id="projectContext" rows="3" placeholder="I built this because I wanted to solve... / I was frustrated with... / I needed a way to..."></textarea>
+<span style="font-size:0.8em;color:#888">This helps the Q&A Helper explain your motivation for building this project</span>
+</div>
+<div class="form-group">
 <label>Detailed Description / README (optional - helps AI understand the project)</label>
 <textarea id="projectReadme" rows="6" placeholder="Paste README content or detailed project description..."></textarea>
 <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
@@ -1454,6 +1459,7 @@ function editProject(i) {
   document.getElementById('projectUrl').value = proj.url || '';
   document.getElementById('projectLiveUrl').value = proj.liveUrl || '';
   document.getElementById('projectFeatures').value = (proj.features || []).join('\n');
+  document.getElementById('projectContext').value = proj.context || '';
   document.getElementById('projectReadme').value = proj.readme || '';
   document.getElementById('projectAiAssisted').checked = proj.aiAssisted || false;
   openModal('project');
@@ -1467,6 +1473,7 @@ function saveProject() {
     url: document.getElementById('projectUrl').value,
     liveUrl: document.getElementById('projectLiveUrl').value,
     features: document.getElementById('projectFeatures').value.split('\n').filter(f => f.trim()),
+    context: document.getElementById('projectContext').value,
     readme: document.getElementById('projectReadme').value,
     aiAssisted: document.getElementById('projectAiAssisted').checked
   };
@@ -1484,7 +1491,7 @@ function saveProject() {
   saveUserData();
 
   // Clear form
-  ['projectName', 'projectShortDesc', 'projectTech', 'projectUrl', 'projectLiveUrl', 'projectFeatures', 'projectReadme'].forEach(id => document.getElementById(id).value = '');
+  ['projectName', 'projectShortDesc', 'projectTech', 'projectUrl', 'projectLiveUrl', 'projectFeatures', 'projectContext', 'projectReadme'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('projectEditIndex').value = '-1';
   document.getElementById('projectAiAssisted').checked = false;
 }

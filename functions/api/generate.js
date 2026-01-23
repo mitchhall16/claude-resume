@@ -86,6 +86,7 @@ ${edu.extras || ''}
 **${proj.name}**
 ${proj.shortDesc || ''}
 Technologies: ${proj.tech || 'Not specified'}
+${proj.context ? `Why I built this: ${proj.context}` : ''}
 ${proj.url ? `URL: ${proj.url}` : ''}
 ${proj.features ? proj.features.map(f => '• ' + f).join('\n') : ''}
 ${proj.readme ? `\nDetailed Description:\n${proj.readme.substring(0, 1000)}${proj.readme.length > 1000 ? '...' : ''}` : ''}
