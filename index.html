@@ -2727,7 +2727,8 @@ async function loadLibrary() {
         </div>
         <div class="resume-meta">
           <span>Created ${formatDate(r.createdAt)}</span>
-          ${(r.matchedKeywordsCount || r.matchedKeywords?.length) > 0 ? `<span>${r.matchedKeywordsCount || r.matchedKeywords.length} keywords matched</span>` : ''}
+          ${(r.matchedKeywordsCount || r.matchedKeywords?.length) > 0 ? `<span style="color:#10b981">${r.matchedKeywordsCount || r.matchedKeywords.length} matched</span>` : ''}
+          ${(r.missingKeywordsCount || r.missingKeywords?.length) > 0 ? `<span style="color:#ef4444">${r.missingKeywordsCount || r.missingKeywords.length} missing</span>` : ''}
         </div>
       </div>
     `).join('');
@@ -2787,16 +2788,16 @@ async function viewResumeDetail(resumeId) {
       </div>
 
       <div style="margin-bottom:20px">
-        <strong>Matched Keywords:</strong>
-        <div style="margin-top:8px">
-          ${(resume.matchedKeywords || []).map(k => `<span class="tag" style="background:#10b981;color:#fff">${k}</span>`).join(' ')}
+        <strong style="display:block;margin-bottom:8px">Matched Keywords (${(resume.matchedKeywords || []).length}):</strong>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${(resume.matchedKeywords || []).map(k => `<span style="display:inline-block;background:#10b981;color:#fff;padding:4px 12px;border-radius:15px;font-size:12px">${k}</span>`).join('')}
         </div>
       </div>
 
       <div style="margin-bottom:20px">
-        <strong>Missing Keywords:</strong>
-        <div style="margin-top:8px">
-          ${(resume.missingKeywords || []).map(k => `<span class="tag" style="background:#ef4444;color:#fff">${k}</span>`).join(' ')}
+        <strong style="display:block;margin-bottom:8px">Missing Keywords (${(resume.missingKeywords || []).length}):</strong>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${(resume.missingKeywords || []).map(k => `<span style="display:inline-block;background:#ef4444;color:#fff;padding:4px 12px;border-radius:15px;font-size:12px">${k}</span>`).join('')}
         </div>
       </div>
 

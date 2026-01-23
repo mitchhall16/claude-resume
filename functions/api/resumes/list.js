@@ -86,6 +86,8 @@ export async function onRequestGet(context) {
       status: r.status || 'generated',
       matchedKeywords: r.matchedKeywords || [],
       matchedKeywordsCount: r.matchedKeywords?.length || 0,
+      missingKeywords: r.missingKeywords || [],
+      missingKeywordsCount: r.missingKeywords?.length || 0,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
       notes: r.notes
