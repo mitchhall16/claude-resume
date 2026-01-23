@@ -2,11 +2,30 @@ export async function onRequestPost(context) {
   const { request, env } = context;
 
   try {
+    // Check API key first
+    if (!env.ANTHROPIC_API_KEY) {
+      console.error('ANTHROPIC_API_KEY is not set');
+      return new Response(JSON.stringify({ error: 'Server configuration error: API key not set' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     const data = await request.json();
     const { profile, experience, education, certs, skills, projects, jobDescription, targetRole, additionalInstructions, includeCoverLetter } = data;
 
+    // Validate required data
+    if (!jobDescription) {
+      return new Response(JSON.stringify({ error: 'Job description is required' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+
     // Build the enhanced prompt based on ClaudeSkills approach
-    const prompt = buildEnhancedPrompt(profile, experience, education, certs, skills, projects, jobDescription, targetRole, additionalInstructions, includeCoverLetter);
+    const prompt = buildEnhancedPrompt(profile || {}, experience || [], education || [], certs || [], skills || {}, projects || [], jobDescription, targetRole, additionalInstructions, includeCoverLetter);
+
+    console.log('Calling Claude API with prompt length:', prompt.length);
 
     // Call Claude API
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -46,8 +65,11 @@ export async function onRequestPost(context) {
     });
 
   } catch (e) {
-    console.error('Error:', e);
-    return new Response(JSON.stringify({ error: e.message }), {
+    console.error('Generate API Error:', e.message, e.stack);
+    return new Response(JSON.stringify({
+      error: 'Server error: ' + e.message,
+      details: e.stack
+    }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });

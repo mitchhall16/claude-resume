@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Claude Resume - AI-Powered ATS Resume Builder</title>
+<!-- PDF Export Library -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e0e0e0;line-height:1.6}
@@ -545,8 +547,14 @@ Reduced page load time by 60% through optimization"></textarea>
 
 <!-- Resume Output -->
 <div class="card" style="margin-bottom:20px;position:relative">
-<h4 style="color:#00ff88;margin-bottom:15px">ATS-Optimized Resume</h4>
-<button class="copy-btn secondary" onclick="copyResume()" style="position:absolute;top:15px;right:15px">Copy Resume</button>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
+<h4 style="color:#00ff88;margin:0">ATS-Optimized Resume</h4>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button class="secondary small" onclick="copyResume()">Copy</button>
+<button class="secondary small" onclick="downloadPDF()" style="background:linear-gradient(135deg,#ef4444,#dc2626)">Download PDF</button>
+<button class="secondary small" onclick="exportToGoogleDocs()" id="googleDocsBtn" style="background:linear-gradient(135deg,#4285F4,#1a73e8)">Export to Google Docs</button>
+</div>
+</div>
 <div class="resume-output" id="resumeOutput"></div>
 </div>
 
@@ -560,7 +568,10 @@ Reduced page load time by 60% through optimization"></textarea>
 <div class="card" style="margin-top:20px;display:none" id="coverLetterSection">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
 <h4 style="color:#10b981;margin:0">Cover Letter</h4>
-<button class="secondary" onclick="copyCoverLetter()" style="padding:6px 12px;font-size:0.85em">Copy</button>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button class="secondary small" onclick="copyCoverLetter()">Copy</button>
+<button class="secondary small" onclick="downloadCoverLetterPDF()" style="background:linear-gradient(135deg,#10b981,#059669)">Download PDF</button>
+</div>
 </div>
 <div id="coverLetterOutput" style="white-space:pre-wrap;line-height:1.8;color:#ddd"></div>
 </div>
@@ -1869,7 +1880,10 @@ async function generateResume() {
       body: JSON.stringify(payload)
     });
 
-    if (!res.ok) throw new Error('API error: ' + res.status);
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || 'API error: ' + res.status);
+    }
 
     const data = await res.json();
 
@@ -2795,6 +2809,477 @@ renderProjects();
 setupAutoSave();
 updateDashboard();
 console.log('Claude Resume initialized v2');
+</script>
+
+<!-- Hidden PDF Template -->
+<div id="pdfTemplate" style="display:none">
+<div id="pdfContent" style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.5;max-width:8.5in;margin:0 auto;padding:0.5in;background:#fff">
+<!-- Header -->
+<div id="pdfHeader" style="text-align:center;border-bottom:2px solid #2563eb;padding-bottom:15px;margin-bottom:20px">
+<h1 id="pdfName" style="font-size:24px;font-weight:700;color:#1a1a1a;margin:0 0 8px 0"></h1>
+<div id="pdfContact" style="font-size:11px;color:#4b5563"></div>
+</div>
+<!-- Summary -->
+<div id="pdfSummarySection" style="margin-bottom:20px">
+<h2 style="font-size:14px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:5px;margin:0 0 10px 0">Professional Summary</h2>
+<p id="pdfSummary" style="font-size:11px;margin:0;text-align:justify"></p>
+</div>
+<!-- Experience -->
+<div id="pdfExperienceSection" style="margin-bottom:20px">
+<h2 style="font-size:14px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:5px;margin:0 0 10px 0">Professional Experience</h2>
+<div id="pdfExperience"></div>
+</div>
+<!-- Education -->
+<div id="pdfEducationSection" style="margin-bottom:20px">
+<h2 style="font-size:14px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:5px;margin:0 0 10px 0">Education</h2>
+<div id="pdfEducation"></div>
+</div>
+<!-- Skills -->
+<div id="pdfSkillsSection" style="margin-bottom:20px">
+<h2 style="font-size:14px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:5px;margin:0 0 10px 0">Skills</h2>
+<p id="pdfSkills" style="font-size:11px;margin:0"></p>
+</div>
+<!-- Projects -->
+<div id="pdfProjectsSection" style="margin-bottom:20px;display:none">
+<h2 style="font-size:14px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:5px;margin:0 0 10px 0">Projects</h2>
+<div id="pdfProjects"></div>
+</div>
+<!-- Certifications -->
+<div id="pdfCertsSection" style="margin-bottom:20px;display:none">
+<h2 style="font-size:14px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:5px;margin:0 0 10px 0">Certifications</h2>
+<div id="pdfCerts"></div>
+</div>
+</div>
+</div>
+
+<!-- Hidden Cover Letter PDF Template -->
+<div id="coverLetterPdfTemplate" style="display:none">
+<div id="coverLetterPdfContent" style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.6;max-width:8.5in;margin:0 auto;padding:0.75in 1in;background:#fff">
+<!-- Header -->
+<div id="clPdfHeader" style="margin-bottom:30px">
+<div id="clPdfName" style="font-size:18px;font-weight:700;color:#1a1a1a;margin-bottom:5px"></div>
+<div id="clPdfContact" style="font-size:11px;color:#4b5563"></div>
+</div>
+<!-- Date -->
+<div id="clPdfDate" style="font-size:11px;margin-bottom:25px"></div>
+<!-- Recipient -->
+<div id="clPdfRecipient" style="font-size:11px;margin-bottom:25px">
+<div id="clPdfCompany" style="font-weight:600"></div>
+<div id="clPdfPosition"></div>
+</div>
+<!-- Salutation -->
+<div style="font-size:11px;margin-bottom:15px">Dear Hiring Manager,</div>
+<!-- Body -->
+<div id="clPdfBody" style="font-size:11px;text-align:justify"></div>
+<!-- Closing -->
+<div style="font-size:11px;margin-top:25px">
+<div>Sincerely,</div>
+<div style="margin-top:30px;font-weight:600" id="clPdfSignature"></div>
+</div>
+</div>
+</div>
+
+<script>
+// ============ PDF Export Functions ============
+
+function downloadPDF() {
+  if (!state.lastGenerated || !state.lastGenerated.resume) {
+    alert('Please generate a resume first');
+    return;
+  }
+
+  // Populate PDF template from current state and generated resume
+  populatePDFTemplate();
+
+  // Get the element
+  const element = document.getElementById('pdfContent');
+  element.style.display = 'block';
+
+  // Configure options for html2pdf
+  const opt = {
+    margin: 0,
+    filename: `${state.profile.fullName || 'Resume'}_${state.lastGenerated.company || 'Resume'}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+  };
+
+  // Generate PDF
+  html2pdf().set(opt).from(element).save().then(() => {
+    element.style.display = 'none';
+  }).catch(err => {
+    console.error('PDF generation error:', err);
+    alert('Error generating PDF. Please try again.');
+    element.style.display = 'none';
+  });
+}
+
+function populatePDFTemplate() {
+  const profile = state.profile;
+  const generated = state.lastGenerated;
+
+  // Header
+  document.getElementById('pdfName').textContent = profile.fullName || 'Your Name';
+
+  // Contact info
+  const contactParts = [];
+  if (profile.email) contactParts.push(profile.email);
+  if (profile.phone) contactParts.push(profile.phone);
+  if (profile.location) contactParts.push(profile.location);
+  if (profile.linkedin) contactParts.push(profile.linkedin.replace('https://', ''));
+  if (profile.github) contactParts.push(profile.github.replace('https://', ''));
+  document.getElementById('pdfContact').textContent = contactParts.join(' | ');
+
+  // Summary - use tailored summary if available
+  const summary = generated.tailoredSummary || profile.summary || '';
+  document.getElementById('pdfSummary').textContent = summary;
+  document.getElementById('pdfSummarySection').style.display = summary ? 'block' : 'none';
+
+  // Experience - parse from generated resume text
+  const expHtml = parseResumeExperience(generated.resume);
+  document.getElementById('pdfExperience').innerHTML = expHtml;
+  document.getElementById('pdfExperienceSection').style.display = expHtml ? 'block' : 'none';
+
+  // Education
+  const eduHtml = state.education.map(edu => `
+    <div style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <strong style="font-size:12px">${edu.degree}</strong>
+        <span style="font-size:10px;color:#6b7280">${edu.startYear || ''} - ${edu.endYear || ''}</span>
+      </div>
+      <div style="font-size:11px;color:#4b5563">${edu.school}${edu.location ? ', ' + edu.location : ''}</div>
+      ${edu.gpa ? `<div style="font-size:10px;color:#6b7280">GPA: ${edu.gpa}</div>` : ''}
+    </div>
+  `).join('');
+  document.getElementById('pdfEducation').innerHTML = eduHtml;
+  document.getElementById('pdfEducationSection').style.display = eduHtml ? 'block' : 'none';
+
+  // Skills
+  const allSkills = [
+    ...(state.skills.technical || []),
+    ...(state.skills.tools || [])
+  ];
+  document.getElementById('pdfSkills').textContent = allSkills.join(', ');
+  document.getElementById('pdfSkillsSection').style.display = allSkills.length ? 'block' : 'none';
+
+  // Projects
+  if (state.projects && state.projects.length > 0) {
+    const projHtml = state.projects.slice(0, 3).map(proj => `
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <strong style="font-size:12px">${proj.name}</strong>
+          ${proj.url ? `<span style="font-size:10px;color:#2563eb">${proj.url.replace('https://', '')}</span>` : ''}
+        </div>
+        <div style="font-size:11px;color:#4b5563;margin:3px 0">${proj.shortDesc || ''}</div>
+        ${proj.technologies ? `<div style="font-size:10px;color:#6b7280">Tech: ${proj.technologies.join(', ')}</div>` : ''}
+      </div>
+    `).join('');
+    document.getElementById('pdfProjects').innerHTML = projHtml;
+    document.getElementById('pdfProjectsSection').style.display = 'block';
+  } else {
+    document.getElementById('pdfProjectsSection').style.display = 'none';
+  }
+
+  // Certifications
+  if (state.certs && state.certs.length > 0) {
+    const certHtml = state.certs.map(cert => `
+      <div style="margin-bottom:8px;font-size:11px">
+        <strong>${cert.name}</strong> - ${cert.org}${cert.date ? ` (${cert.date})` : ''}
+      </div>
+    `).join('');
+    document.getElementById('pdfCerts').innerHTML = certHtml;
+    document.getElementById('pdfCertsSection').style.display = 'block';
+  } else {
+    document.getElementById('pdfCertsSection').style.display = 'none';
+  }
+}
+
+function parseResumeExperience(resumeText) {
+  if (!resumeText) return '';
+
+  // Parse the plain text resume to extract experience section
+  // The generated resume format typically has EXPERIENCE section with job entries
+  const lines = resumeText.split('\n');
+  let inExperience = false;
+  let expHtml = '';
+  let currentJob = null;
+  let bullets = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Detect section headers
+    if (/^(EXPERIENCE|PROFESSIONAL EXPERIENCE|WORK EXPERIENCE)/i.test(trimmed)) {
+      inExperience = true;
+      continue;
+    }
+    if (/^(EDUCATION|SKILLS|PROJECTS|CERTIFICATIONS|TECHNICAL SKILLS)/i.test(trimmed)) {
+      // Save last job before exiting
+      if (currentJob) {
+        expHtml += formatJobEntry(currentJob, bullets);
+      }
+      inExperience = false;
+      currentJob = null;
+      bullets = [];
+      continue;
+    }
+
+    if (inExperience && trimmed) {
+      // Check if this is a new job entry (usually has job title and company on same or adjacent lines)
+      // Common patterns: "Job Title | Company | Location | Dates" or "Job Title - Company"
+      if (trimmed.includes('|') && !trimmed.startsWith('-') && !trimmed.startsWith('•')) {
+        // Save previous job
+        if (currentJob) {
+          expHtml += formatJobEntry(currentJob, bullets);
+          bullets = [];
+        }
+        const parts = trimmed.split('|').map(p => p.trim());
+        currentJob = {
+          title: parts[0] || '',
+          company: parts[1] || '',
+          location: parts[2] || '',
+          dates: parts[3] || ''
+        };
+      } else if ((trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.startsWith('*')) && currentJob) {
+        // This is a bullet point
+        bullets.push(trimmed.replace(/^[-•*]\s*/, ''));
+      }
+    }
+  }
+
+  // Don't forget the last job
+  if (currentJob) {
+    expHtml += formatJobEntry(currentJob, bullets);
+  }
+
+  return expHtml;
+}
+
+function formatJobEntry(job, bullets) {
+  return `
+    <div style="margin-bottom:15px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap">
+        <strong style="font-size:12px">${job.title}</strong>
+        <span style="font-size:10px;color:#6b7280">${job.dates}</span>
+      </div>
+      <div style="font-size:11px;color:#4b5563;margin-bottom:5px">${job.company}${job.location ? ', ' + job.location : ''}</div>
+      <ul style="margin:0;padding-left:18px;font-size:11px">
+        ${bullets.map(b => `<li style="margin-bottom:3px">${b}</li>`).join('')}
+      </ul>
+    </div>
+  `;
+}
+
+// ============ Cover Letter PDF Export ============
+
+function downloadCoverLetterPDF() {
+  if (!state.lastGenerated || !state.lastGenerated.coverLetter) {
+    alert('No cover letter available. Generate a resume with the cover letter option enabled.');
+    return;
+  }
+
+  // Populate cover letter PDF template
+  populateCoverLetterPDFTemplate();
+
+  // Get the element
+  const element = document.getElementById('coverLetterPdfContent');
+  element.style.display = 'block';
+
+  // Configure options for html2pdf
+  const opt = {
+    margin: 0,
+    filename: `Cover_Letter_${state.profile.fullName || 'Cover_Letter'}_${state.lastGenerated.company || ''}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+  };
+
+  // Generate PDF
+  html2pdf().set(opt).from(element).save().then(() => {
+    element.style.display = 'none';
+  }).catch(err => {
+    console.error('Cover letter PDF generation error:', err);
+    alert('Error generating PDF. Please try again.');
+    element.style.display = 'none';
+  });
+}
+
+function populateCoverLetterPDFTemplate() {
+  const profile = state.profile;
+  const generated = state.lastGenerated;
+
+  // Header
+  document.getElementById('clPdfName').textContent = profile.fullName || 'Your Name';
+
+  // Contact info
+  const contactParts = [];
+  if (profile.email) contactParts.push(profile.email);
+  if (profile.phone) contactParts.push(profile.phone);
+  if (profile.location) contactParts.push(profile.location);
+  document.getElementById('clPdfContact').textContent = contactParts.join(' | ');
+
+  // Date
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  document.getElementById('clPdfDate').textContent = dateStr;
+
+  // Recipient
+  document.getElementById('clPdfCompany').textContent = generated.company || '';
+  document.getElementById('clPdfPosition').textContent = generated.title ? `Re: ${generated.title}` : '';
+
+  // Body - parse cover letter and convert to paragraphs
+  const coverLetter = generated.coverLetter || '';
+  // Remove common salutation and closing if present (we add our own)
+  let bodyText = coverLetter
+    .replace(/^Dear[^,]*,?\s*/i, '')
+    .replace(/\s*Sincerely,?\s*[\s\S]*$/i, '')
+    .replace(/\s*Best regards,?\s*[\s\S]*$/i, '')
+    .replace(/\s*Kind regards,?\s*[\s\S]*$/i, '')
+    .trim();
+
+  // Convert to paragraphs
+  const paragraphs = bodyText.split(/\n\n+/).filter(p => p.trim());
+  document.getElementById('clPdfBody').innerHTML = paragraphs
+    .map(p => `<p style="margin:0 0 12px 0">${p.replace(/\n/g, ' ')}</p>`)
+    .join('');
+
+  // Signature
+  document.getElementById('clPdfSignature').textContent = profile.fullName || 'Your Name';
+}
+
+// ============ Google Docs Export Functions ============
+
+// CONFIGURATION: Replace with your Google Cloud OAuth Client ID
+// Follow these steps to get your client ID:
+// 1. Go to console.cloud.google.com
+// 2. Create a new project (or select existing)
+// 3. Enable Google Docs API and Google Drive API
+// 4. Go to Credentials > Create Credentials > OAuth Client ID
+// 5. Select "Web application" and add your domain to authorized JavaScript origins
+// 6. Copy the client ID and paste it below
+const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+
+let googleAccessToken = null;
+
+async function exportToGoogleDocs() {
+  if (!state.lastGenerated || !state.lastGenerated.resume) {
+    alert('Please generate a resume first');
+    return;
+  }
+
+  // Check if user is signed in with Google
+  if (!googleAccessToken) {
+    // Trigger Google sign-in
+    await signInWithGoogle();
+    if (!googleAccessToken) {
+      return; // User cancelled or error
+    }
+  }
+
+  const btn = document.getElementById('googleDocsBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Creating...';
+  btn.disabled = true;
+
+  try {
+    const response = await fetch('/api/google-docs', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        accessToken: googleAccessToken,
+        resumeData: {
+          fullName: state.profile.fullName || 'Your Name',
+          email: state.profile.email || '',
+          phone: state.profile.phone || '',
+          location: state.profile.location || '',
+          linkedin: state.profile.linkedin || '',
+          github: state.profile.github || '',
+          summary: state.lastGenerated.tailoredSummary || state.profile.summary || '',
+          resume: state.lastGenerated.resume,
+          coverLetter: state.lastGenerated.coverLetter || null,
+          company: state.lastGenerated.company || 'Resume',
+          title: state.lastGenerated.title || 'Position',
+          experience: state.experience,
+          education: state.education,
+          skills: state.skills,
+          projects: state.projects,
+          certs: state.certs
+        }
+      })
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      if (data.error.includes('token')) {
+        // Token expired, clear and retry
+        googleAccessToken = null;
+        alert('Google session expired. Please sign in again.');
+      } else {
+        alert('Error creating Google Doc: ' + data.error);
+      }
+      return;
+    }
+
+    if (data.docUrl) {
+      // Success - open the document
+      window.open(data.docUrl, '_blank');
+      alert('Resume exported to Google Docs successfully!');
+    }
+  } catch (err) {
+    console.error('Google Docs export error:', err);
+    alert('Error exporting to Google Docs. Please try again.');
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+}
+
+function signInWithGoogle() {
+  return new Promise((resolve) => {
+    // Check if google.accounts is available
+    if (typeof google === 'undefined' || !google.accounts) {
+      alert('Google Sign-In is not available. Please refresh the page and try again.');
+      resolve();
+      return;
+    }
+
+    // Check if Google Client ID is configured
+    if (GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com') {
+      alert('Google Docs export requires configuration.\n\nPlease set up a Google Cloud project and update GOOGLE_CLIENT_ID in the code.\n\nSee: console.cloud.google.com');
+      resolve();
+      return;
+    }
+
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/documents https://www.googleapis.com/auth/drive.file',
+      callback: (response) => {
+        if (response.access_token) {
+          googleAccessToken = response.access_token;
+          resolve();
+        } else {
+          console.error('No access token in response');
+          resolve();
+        }
+      },
+      error_callback: (error) => {
+        console.error('Google sign-in error:', error);
+        if (error.type === 'popup_closed') {
+          // User closed the popup
+        } else {
+          alert('Google sign-in failed. Please check your Google Cloud project configuration.');
+        }
+        resolve();
+      }
+    });
+
+    client.requestAccessToken();
+  });
+}
 </script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </body>
