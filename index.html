@@ -921,6 +921,7 @@ const state = {
   certs: JSON.parse(localStorage.getItem('resumeCerts') || '[]'),
   skills: JSON.parse(localStorage.getItem('resumeSkills') || '{"technical":[],"soft":[],"tools":[],"interests":[]}'),
   projects: JSON.parse(localStorage.getItem('resumeProjects') || '[]'),
+  instructionPresets: JSON.parse(localStorage.getItem('instructionPresets') || '[]'),
   lastGenerated: null,
   libraryStats: null
 };
@@ -1921,7 +1922,7 @@ function copyCoverLetter() {
 // Fetch job from URL
 // Instruction presets
 function loadInstructionPresets() {
-  const presets = JSON.parse(localStorage.getItem('instructionPresets') || '[]');
+  const presets = state.instructionPresets || [];
   const container = document.getElementById('instructionPresets');
 
   if (presets.length === 0) {
@@ -1949,24 +1950,24 @@ function saveInstructionPreset() {
   const name = prompt('Give this preset a short name:', text.substring(0, 30) + (text.length > 30 ? '...' : ''));
   if (!name) return;
 
-  const presets = JSON.parse(localStorage.getItem('instructionPresets') || '[]');
-
   // Check for duplicate names
-  if (presets.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+  if (state.instructionPresets.some(p => p.name.toLowerCase() === name.toLowerCase())) {
     if (!confirm('A preset with this name already exists. Replace it?')) return;
-    const idx = presets.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
-    presets[idx] = { name, text };
+    const idx = state.instructionPresets.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+    state.instructionPresets[idx] = { name, text };
   } else {
-    presets.push({ name, text });
+    state.instructionPresets.push({ name, text });
   }
 
-  localStorage.setItem('instructionPresets', JSON.stringify(presets));
+  // Save to localStorage (for non-logged-in users) and to account (if logged in)
+  localStorage.setItem('instructionPresets', JSON.stringify(state.instructionPresets));
+  saveUserData();
   loadInstructionPresets();
-  alert('Preset saved!');
+  alert('Preset saved!' + (currentUser ? ' Synced to your account.' : ''));
 }
 
 function addPresetToInstructions(idx) {
-  const presets = JSON.parse(localStorage.getItem('instructionPresets') || '[]');
+  const presets = state.instructionPresets || [];
   if (!presets[idx]) return;
 
   const textarea = document.getElementById('additionalInstructions');
@@ -1984,9 +1985,9 @@ function addPresetToInstructions(idx) {
 function deletePreset(idx) {
   if (!confirm('Delete this preset?')) return;
 
-  const presets = JSON.parse(localStorage.getItem('instructionPresets') || '[]');
-  presets.splice(idx, 1);
-  localStorage.setItem('instructionPresets', JSON.stringify(presets));
+  state.instructionPresets.splice(idx, 1);
+  localStorage.setItem('instructionPresets', JSON.stringify(state.instructionPresets));
+  saveUserData();
   loadInstructionPresets();
 }
 
@@ -2996,12 +2997,14 @@ async function loadUserData() {
       if (data.certs) state.certs = data.certs;
       if (data.skills) state.skills = data.skills;
       if (data.projects) state.projects = data.projects;
+      if (data.instructionPresets) state.instructionPresets = data.instructionPresets;
       loadProfile();
       renderExperience();
       renderEducation();
       renderCerts();
       renderSkills();
       renderProjects();
+      loadInstructionPresets();
     }
   } catch (e) {
     console.log('No saved data found');
@@ -3021,7 +3024,8 @@ async function saveUserData() {
         education: state.education,
         certs: state.certs,
         skills: state.skills,
-        projects: state.projects
+        projects: state.projects,
+        instructionPresets: state.instructionPresets
       })
     });
   } catch (e) {
