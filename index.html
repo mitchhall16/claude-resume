@@ -562,6 +562,41 @@ Reduced page load time by 60% through optimization"></textarea>
 <div id="tailoredSummary" style="font-style:italic;color:#ddd"></div>
 </div>
 
+<!-- Side-by-Side Comparison -->
+<div class="card" style="margin-bottom:20px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
+<h4 style="color:#ec4899;margin:0">What Changed</h4>
+<button class="secondary small" onclick="toggleComparison()" id="toggleComparisonBtn">Show Details</button>
+</div>
+
+<div id="comparisonSummary" style="color:#aaa;margin-bottom:15px">
+<!-- Quick stats shown by default -->
+</div>
+
+<div id="comparisonDetails" style="display:none">
+<!-- Summary Comparison -->
+<div style="margin-bottom:25px">
+<h5 style="color:#a855f7;margin-bottom:10px;font-size:14px">Professional Summary</h5>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:15px">
+<div style="background:#1a1a2e;padding:15px;border-radius:8px;border-left:3px solid #666">
+<div style="color:#888;font-size:11px;margin-bottom:8px;text-transform:uppercase">Original</div>
+<div id="originalSummary" style="color:#aaa;font-size:13px;line-height:1.6"></div>
+</div>
+<div style="background:#1a2e1a;padding:15px;border-radius:8px;border-left:3px solid #00ff88">
+<div style="color:#00ff88;font-size:11px;margin-bottom:8px;text-transform:uppercase">Tailored</div>
+<div id="newSummary" style="color:#ddd;font-size:13px;line-height:1.6"></div>
+</div>
+</div>
+</div>
+
+<!-- Experience Comparison -->
+<div id="experienceComparison">
+<h5 style="color:#a855f7;margin-bottom:10px;font-size:14px">Experience Bullets</h5>
+<div id="experienceComparisonList"></div>
+</div>
+</div>
+</div>
+
 <!-- Resume Output -->
 <div class="card" style="margin-bottom:20px;position:relative">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
@@ -2014,12 +2049,170 @@ async function generateResume() {
       document.getElementById('coverLetterSection').style.display = 'none';
     }
 
+    // Populate comparison view
+    populateComparison(data);
+
     document.getElementById('output').style.display = 'block';
   } catch (e) {
     alert('Error generating resume: ' + e.message);
   } finally {
     document.getElementById('loading').classList.remove('active');
   }
+}
+
+function toggleComparison() {
+  const details = document.getElementById('comparisonDetails');
+  const btn = document.getElementById('toggleComparisonBtn');
+
+  if (details.style.display === 'none') {
+    details.style.display = 'block';
+    btn.textContent = 'Hide Details';
+  } else {
+    details.style.display = 'none';
+    btn.textContent = 'Show Details';
+  }
+}
+
+function populateComparison(data) {
+  const originalSummary = state.profile.summary || '';
+  const tailoredSummary = data.tailoredSummary || '';
+
+  // Summary comparison
+  document.getElementById('originalSummary').textContent = originalSummary || '(No summary provided)';
+  document.getElementById('newSummary').textContent = tailoredSummary || '(No tailored summary generated)';
+
+  // Parse the generated resume to extract experience bullets
+  const generatedBullets = extractBulletsFromResume(data.resume || '');
+
+  // Build experience comparison
+  let comparisonHtml = '';
+  let totalOriginalBullets = 0;
+  let changesCount = 0;
+
+  state.experience.forEach((exp, idx) => {
+    const originalBullets = exp.bullets || [];
+    totalOriginalBullets += originalBullets.length;
+
+    // Find matching experience in generated resume
+    const matchedBullets = findMatchingExperience(exp.company, exp.title, generatedBullets);
+
+    if (originalBullets.length > 0 || matchedBullets.length > 0) {
+      comparisonHtml += `
+        <div style="margin-bottom:20px;padding:15px;background:#111;border-radius:8px">
+          <div style="color:#fff;font-weight:600;margin-bottom:12px">${exp.title} at ${exp.company}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px">
+            <div>
+              <div style="color:#888;font-size:11px;margin-bottom:8px;text-transform:uppercase">Original Bullets</div>
+              <ul style="margin:0;padding-left:20px;color:#aaa;font-size:13px;line-height:1.8">
+                ${originalBullets.map(b => `<li>${escapeHtml(b)}</li>`).join('')}
+              </ul>
+            </div>
+            <div>
+              <div style="color:#00ff88;font-size:11px;margin-bottom:8px;text-transform:uppercase">Rewritten Bullets</div>
+              <ul style="margin:0;padding-left:20px;color:#ddd;font-size:13px;line-height:1.8">
+                ${matchedBullets.length > 0
+                  ? matchedBullets.map(b => `<li>${escapeHtml(b)}</li>`).join('')
+                  : '<li style="color:#666">(Experience may have been condensed or reordered)</li>'}
+              </ul>
+            </div>
+          </div>
+        </div>
+      `;
+
+      if (matchedBullets.length > 0) {
+        changesCount += Math.max(originalBullets.length, matchedBullets.length);
+      }
+    }
+  });
+
+  document.getElementById('experienceComparisonList').innerHTML = comparisonHtml || '<p style="color:#666">No experience to compare</p>';
+
+  // Summary stats
+  const summaryChanged = originalSummary !== tailoredSummary && tailoredSummary;
+  const keywordsAdded = (data.matchedKeywords || []).length;
+
+  document.getElementById('comparisonSummary').innerHTML = `
+    <div style="display:flex;gap:20px;flex-wrap:wrap">
+      <div style="background:#1a1a2e;padding:12px 20px;border-radius:8px;text-align:center">
+        <div style="font-size:24px;font-weight:700;color:#00ff88">${summaryChanged ? 'Yes' : 'No'}</div>
+        <div style="font-size:11px;color:#888;text-transform:uppercase">Summary Tailored</div>
+      </div>
+      <div style="background:#1a1a2e;padding:12px 20px;border-radius:8px;text-align:center">
+        <div style="font-size:24px;font-weight:700;color:#8b5cf6">${totalOriginalBullets}</div>
+        <div style="font-size:11px;color:#888;text-transform:uppercase">Original Bullets</div>
+      </div>
+      <div style="background:#1a1a2e;padding:12px 20px;border-radius:8px;text-align:center">
+        <div style="font-size:24px;font-weight:700;color:#f59e0b">${keywordsAdded}</div>
+        <div style="font-size:11px;color:#888;text-transform:uppercase">Keywords Matched</div>
+      </div>
+      <div style="background:#1a1a2e;padding:12px 20px;border-radius:8px;text-align:center">
+        <div style="font-size:24px;font-weight:700;color:#ec4899">${data.score || 0}%</div>
+        <div style="font-size:11px;color:#888;text-transform:uppercase">ATS Score</div>
+      </div>
+    </div>
+  `;
+
+  // Reset comparison details to hidden
+  document.getElementById('comparisonDetails').style.display = 'none';
+  document.getElementById('toggleComparisonBtn').textContent = 'Show Details';
+}
+
+function extractBulletsFromResume(resumeText) {
+  // Extract bullet points grouped by company/role
+  const sections = {};
+  const lines = resumeText.split('\n');
+  let currentSection = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+
+    // Detect job headers (usually has company name and title)
+    if (trimmed.match(/^[A-Z].*(?:at|@|\||-)\s*[A-Z]/i) ||
+        trimmed.match(/^[A-Z][A-Za-z\s]+,\s*[A-Z]/)) {
+      currentSection = trimmed.toLowerCase();
+      sections[currentSection] = [];
+    }
+    // Detect bullets
+    else if ((trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) && currentSection) {
+      const bullet = trimmed.replace(/^[•\-*]\s*/, '').trim();
+      if (bullet.length > 10) {
+        sections[currentSection].push(bullet);
+      }
+    }
+  }
+
+  return sections;
+}
+
+function findMatchingExperience(company, title, generatedBullets) {
+  const companyLower = (company || '').toLowerCase();
+  const titleLower = (title || '').toLowerCase();
+
+  for (const [section, bullets] of Object.entries(generatedBullets)) {
+    if (section.includes(companyLower) || section.includes(titleLower)) {
+      return bullets;
+    }
+  }
+
+  // Fuzzy match - check if any section contains part of company or title
+  for (const [section, bullets] of Object.entries(generatedBullets)) {
+    const companyParts = companyLower.split(/\s+/);
+    const titleParts = titleLower.split(/\s+/);
+
+    for (const part of [...companyParts, ...titleParts]) {
+      if (part.length > 3 && section.includes(part)) {
+        return bullets;
+      }
+    }
+  }
+
+  return [];
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 async function saveCurrentResume() {
