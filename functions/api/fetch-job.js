@@ -27,23 +27,51 @@ export async function onRequestPost(context) {
     }
 
     const html = await response.text();
+    let result = { title: '', company: '', description: '', location: '' };
 
-    // First try to extract JSON-LD structured data (most reliable)
-    let result = extractJsonLd(html);
-
-    // If JSON-LD didn't work well, try platform-specific parsing
-    if (!result.description || result.description.length < 100) {
-      if (url.includes('greenhouse.io')) {
-        result = { ...result, ...parseGreenhouse(html) };
-      } else if (url.includes('lever.co')) {
-        result = { ...result, ...parseLever(html) };
-      } else if (url.includes('ashbyhq.com')) {
-        result = { ...result, ...parseAshby(html) };
-      } else if (url.includes('workday.com')) {
-        result = { ...result, ...parseWorkday(html) };
-      } else {
-        result = { ...result, ...parseGeneric(html) };
+    // Extract company from URL for Greenhouse (it's in the path)
+    if (url.includes('greenhouse.io')) {
+      const urlMatch = url.match(/greenhouse\.io\/([^\/]+)/i);
+      if (urlMatch) {
+        // Convert "figureai" to "Figure AI" style
+        result.company = urlMatch[1].replace(/([a-z])([A-Z])/g, '$1 $2')
+                                     .replace(/[-_]/g, ' ')
+                                     .split(' ')
+                                     .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                                     .join(' ');
       }
+    }
+
+    // Try JSON-LD structured data first
+    const jsonLdData = extractJsonLd(html);
+    if (jsonLdData.title) result.title = jsonLdData.title;
+    if (jsonLdData.company) result.company = jsonLdData.company;
+    if (jsonLdData.location) result.location = jsonLdData.location;
+    if (jsonLdData.description && jsonLdData.description.length > 100) {
+      result.description = jsonLdData.description;
+    }
+
+    // Try platform-specific parsing for description if needed
+    if (!result.description || result.description.length < 100) {
+      let platformResult;
+      if (url.includes('greenhouse.io')) {
+        platformResult = parseGreenhouse(html);
+      } else if (url.includes('lever.co')) {
+        platformResult = parseLever(html);
+      } else if (url.includes('ashbyhq.com')) {
+        platformResult = parseAshby(html);
+      } else if (url.includes('workday.com')) {
+        platformResult = parseWorkday(html);
+      } else {
+        platformResult = parseGeneric(html);
+      }
+
+      if (platformResult.description && platformResult.description.length > (result.description?.length || 0)) {
+        result.description = platformResult.description;
+      }
+      if (!result.title && platformResult.title) result.title = platformResult.title;
+      if (!result.company && platformResult.company) result.company = platformResult.company;
+      if (!result.location && platformResult.location) result.location = platformResult.location;
     }
 
     // Final fallback - extract meta tags
@@ -84,18 +112,48 @@ function extractJsonLd(html) {
       try {
         const data = JSON.parse(match[1]);
 
-        // Handle array of JSON-LD objects
-        const items = Array.isArray(data) ? data : [data];
+        // Handle array of JSON-LD objects or nested @graph
+        let items = Array.isArray(data) ? data : [data];
+        if (data['@graph']) {
+          items = data['@graph'];
+        }
 
         for (const item of items) {
           if (item['@type'] === 'JobPosting') {
-            result.title = item.title || '';
-            result.description = item.description ? htmlToText(item.description) : '';
-            result.company = item.hiringOrganization?.name || '';
-            result.location = item.jobLocation?.address?.addressLocality ||
-                             item.jobLocation?.name ||
-                             (typeof item.jobLocation === 'string' ? item.jobLocation : '');
-            return result;
+            result.title = item.title || item.name || '';
+
+            // Description might be plain text or HTML
+            if (item.description) {
+              result.description = htmlToText(item.description);
+            }
+
+            // Company can be in different places
+            if (item.hiringOrganization) {
+              if (typeof item.hiringOrganization === 'string') {
+                result.company = item.hiringOrganization;
+              } else {
+                result.company = item.hiringOrganization.name || '';
+              }
+            }
+
+            // Location handling
+            if (item.jobLocation) {
+              if (typeof item.jobLocation === 'string') {
+                result.location = item.jobLocation;
+              } else if (Array.isArray(item.jobLocation)) {
+                const loc = item.jobLocation[0];
+                result.location = loc?.address?.addressLocality || loc?.name || '';
+              } else {
+                result.location = item.jobLocation.address?.addressLocality ||
+                                 item.jobLocation.address?.name ||
+                                 item.jobLocation.name || '';
+              }
+            }
+
+            // Only return if we got meaningful data
+            if (result.title || result.description) {
+              return result;
+            }
           }
         }
       } catch (e) {
@@ -132,17 +190,54 @@ function extractTitle(html) {
 function parseGreenhouse(html) {
   const result = { title: '', company: '', description: '', location: '' };
 
-  // Greenhouse specific: look for content in #content div
-  const contentMatch = html.match(/<div[^>]*id=["']content["'][^>]*>([\s\S]*?)(?=<div[^>]*id=["']application|<form|<div[^>]*class=["'][^"']*application)/i);
-  if (contentMatch) {
-    result.description = htmlToText(contentMatch[1]);
+  // Greenhouse uses various content containers - try multiple patterns
+  const descPatterns = [
+    // Main content div
+    /<div[^>]*id=["']content["'][^>]*>([\s\S]*?)(?=<div[^>]*id=["']application|<form)/i,
+    // Section with job content
+    /<section[^>]*class=["'][^"']*job[^"']*["'][^>]*>([\s\S]*?)<\/section>/i,
+    // App body
+    /<div[^>]*class=["'][^"']*app-body[^"']*["'][^>]*>([\s\S]*?)<\/div>\s*<\/div>/i,
+    // Content wrapper
+    /<div[^>]*class=["'][^"']*content-wrapper[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+    // Job description specific
+    /<div[^>]*class=["'][^"']*job[-_]?description[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+    // Greenhouse boards use data attributes sometimes
+    /<div[^>]*data-job[-_]?content[^>]*>([\s\S]*?)<\/div>/i,
+    // Generic sections with lists (job requirements often have ul/li)
+    /<div[^>]*>([\s\S]*?<ul[\s\S]*?<\/ul>[\s\S]*?)<\/div>/i
+  ];
+
+  for (const pattern of descPatterns) {
+    const match = html.match(pattern);
+    if (match) {
+      const text = htmlToText(match[1]);
+      // Job descriptions should be substantial (at least 200 chars) and contain job-related words
+      if (text.length > 200 && /experience|responsibilities|requirements|qualifications|skills|about|team|role|position/i.test(text)) {
+        result.description = text;
+        break;
+      }
+    }
   }
 
-  // Try app-body class
-  if (!result.description || result.description.length < 100) {
-    const appBodyMatch = html.match(/<div[^>]*class=["'][^"']*app-body[^"']*["'][^>]*>([\s\S]*?)<\/div>\s*<\/div>/i);
-    if (appBodyMatch) {
-      result.description = htmlToText(appBodyMatch[1]);
+  // If still no good description, try to extract everything between header and application form
+  if (!result.description || result.description.length < 200) {
+    // Remove header, footer, navigation, and application sections
+    let cleanHtml = html;
+    cleanHtml = cleanHtml.replace(/<header[\s\S]*?<\/header>/gi, '');
+    cleanHtml = cleanHtml.replace(/<nav[\s\S]*?<\/nav>/gi, '');
+    cleanHtml = cleanHtml.replace(/<footer[\s\S]*?<\/footer>/gi, '');
+    cleanHtml = cleanHtml.replace(/<form[\s\S]*?<\/form>/gi, '');
+    cleanHtml = cleanHtml.replace(/<div[^>]*id=["']application["'][^>]*>[\s\S]*?<\/div>/gi, '');
+
+    // Look for the main content area
+    const mainMatch = cleanHtml.match(/<main[^>]*>([\s\S]*?)<\/main>/i) ||
+                      cleanHtml.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
+    if (mainMatch) {
+      const text = htmlToText(mainMatch[1]);
+      if (text.length > 200) {
+        result.description = text;
+      }
     }
   }
 
@@ -152,11 +247,13 @@ function parseGreenhouse(html) {
   if (titleMatch) result.title = cleanText(titleMatch[1]);
 
   // Greenhouse company
-  const companyMatch = html.match(/<span[^>]*class=["'][^"']*company-name[^"']*["'][^>]*>([^<]+)<\/span>/i);
+  const companyMatch = html.match(/<span[^>]*class=["'][^"']*company-name[^"']*["'][^>]*>([^<]+)<\/span>/i) ||
+                       html.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']+)["']/i);
   if (companyMatch) result.company = cleanText(companyMatch[1]);
 
   // Greenhouse location
-  const locationMatch = html.match(/<div[^>]*class=["'][^"']*location[^"']*["'][^>]*>([^<]+)<\/div>/i);
+  const locationMatch = html.match(/<div[^>]*class=["'][^"']*location[^"']*["'][^>]*>([^<]+)<\/div>/i) ||
+                        html.match(/<span[^>]*class=["'][^"']*location[^"']*["'][^>]*>([^<]+)<\/span>/i);
   if (locationMatch) result.location = cleanText(locationMatch[1]);
 
   return result;
