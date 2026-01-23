@@ -2093,6 +2093,7 @@ async function generateResume() {
       company: document.getElementById('jobCompany').value || 'Unknown Company',
       title: document.getElementById('targetRole').value || 'Position',
       jobDescription: jobDescription,
+      jobUrl: document.getElementById('jobUrl').value || '',
       score: data.score,
       matchedKeywords: data.matchedKeywords,
       missingKeywords: data.missingKeywords,
@@ -2716,8 +2717,9 @@ async function loadLibrary() {
           </div>
           <div class="resume-score ${r.score >= 70 ? 'high' : r.score >= 50 ? 'medium' : 'low'}">${r.score}%</div>
         </div>
-        <div style="margin:10px 0">
+        <div style="margin:10px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <span class="status-badge ${r.status}">${r.status}</span>
+          ${r.jobUrl ? `<a href="${r.jobUrl}" target="_blank" onclick="event.stopPropagation()" style="color:#6366f1;font-size:12px;text-decoration:none">View Job Posting ↗</a>` : ''}
         </div>
         <div class="resume-meta">
           <span>Created ${formatDate(r.createdAt)}</span>
