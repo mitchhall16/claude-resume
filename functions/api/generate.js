@@ -1,16 +1,8 @@
 export async function onRequestPost(context) {
   const { request, env } = context;
+  const API_KEY = env.ANTHROPIC_API_KEY || 'REDACTED';
 
   try {
-    // Check API key first
-    if (!env.ANTHROPIC_API_KEY) {
-      console.error('ANTHROPIC_API_KEY is not set');
-      return new Response(JSON.stringify({ error: 'Server configuration error: API key not set' }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-
     const data = await request.json();
     const { profile, experience, education, certs, skills, projects, jobDescription, targetRole, additionalInstructions, includeCoverLetter } = data;
 
@@ -32,7 +24,7 @@ export async function onRequestPost(context) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': env.ANTHROPIC_API_KEY,
+        'x-api-key': API_KEY,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
