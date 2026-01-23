@@ -269,7 +269,12 @@ Sign in with Google
 <div class="grid" style="margin-bottom:20px">
 <div>
 <label style="color:#0077b5;font-weight:600">LinkedIn Data Export</label>
-<p style="color:#888;font-size:0.85em;margin:5px 0 10px">Download from LinkedIn Settings Data Privacy Get a copy of your data</p>
+<p style="color:#888;font-size:0.85em;margin:5px 0 10px">
+<strong>Important:</strong> You need the <em>full</em> export, not the basic one.<br>
+1. LinkedIn → Settings → Data Privacy → Get a copy of your data<br>
+2. Select "<strong>Download larger data archive</strong>" (takes 10min-24hrs)<br>
+3. Upload the ZIP when you receive the email
+</p>
 <input type="file" id="linkedinZip" accept=".zip" onchange="parseLinkedInZip(this.files[0])" style="display:none">
 <button onclick="document.getElementById('linkedinZip').click()" class="secondary" style="width:100%">
 Upload LinkedIn ZIP
