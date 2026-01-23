@@ -181,6 +181,7 @@ Sign in with Google
 <div class="tab" data-tab="profile">Profile</div>
 <div class="tab" data-tab="experience">Experience</div>
 <div class="tab" data-tab="skills">Skills</div>
+<div class="tab" data-tab="projects">Projects</div>
 <div class="tab" data-tab="generate">Generate</div>
 <div class="tab" data-tab="batch">Batch Jobs</div>
 <div class="tab" data-tab="library">Library<span class="tab-badge" id="libraryBadge" style="display:none">0</span></div>
@@ -401,6 +402,65 @@ Paste Resume Text
 </div>
 </div>
 
+<!-- Projects Panel -->
+<div class="panel" id="projects">
+<h2>Projects & Portfolio</h2>
+<p style="color:#888;margin-bottom:20px">Add projects that showcase your skills. These will be matched against job requirements and included in your tailored resume and cover letter.</p>
+
+<div id="projectsList"></div>
+<div class="add-btn" onclick="openModal('project')">+ Add Project</div>
+
+<div class="card" style="margin-top:30px;background:linear-gradient(135deg,#1a1a2e,#16213e)">
+<h4 style="color:#8b5cf6;margin-bottom:15px">Import from GitHub</h4>
+<p style="color:#888;font-size:0.9em;margin-bottom:15px">For private repos, paste the README content or describe the project manually above.</p>
+<div class="form-group">
+<label>GitHub Repository URL (public repos only)</label>
+<input type="url" id="githubRepoUrl" placeholder="https://github.com/username/repo">
+</div>
+<button onclick="importFromGitHub()" class="secondary">Import Public Repo</button>
+<span id="githubImportStatus" style="margin-left:10px;color:#888"></span>
+</div>
+</div>
+
+<!-- Project Modal -->
+<div class="modal" id="projectModal">
+<div class="modal-content">
+<div class="modal-header">
+<h3 id="projectModalTitle">Add Project</h3>
+<button class="modal-close" onclick="closeModal('project')">&times;</button>
+</div>
+<input type="hidden" id="projectEditIndex" value="-1">
+<div class="form-group">
+<label>Project Name</label>
+<input type="text" id="projectName" placeholder="E-commerce Platform">
+</div>
+<div class="form-group">
+<label>Short Description</label>
+<input type="text" id="projectShortDesc" placeholder="Full-stack e-commerce solution with payment processing">
+</div>
+<div class="form-group">
+<label>Technologies Used (comma-separated)</label>
+<input type="text" id="projectTech" placeholder="React, Node.js, PostgreSQL, Stripe API">
+</div>
+<div class="form-group">
+<label>Project URL (optional)</label>
+<input type="url" id="projectUrl" placeholder="https://github.com/you/project or live URL">
+</div>
+<div class="form-group">
+<label>Key Features & Achievements (one per line)</label>
+<textarea id="projectFeatures" rows="5" placeholder="Built real-time inventory management system
+Integrated Stripe payments processing $50K+ monthly
+Achieved 99.9% uptime with automated CI/CD pipeline
+Reduced page load time by 60% through optimization"></textarea>
+</div>
+<div class="form-group">
+<label>Detailed Description / README (optional - helps AI understand the project)</label>
+<textarea id="projectReadme" rows="6" placeholder="Paste README content or detailed project description..."></textarea>
+</div>
+<button onclick="saveProject()">Save Project</button>
+</div>
+</div>
+
 <!-- Generate Panel -->
 <div class="panel" id="generate">
 <h2>Generate Tailored Resume</h2>
@@ -421,6 +481,12 @@ Paste Resume Text
 <div class="form-group">
 <label>Additional Instructions (optional)</label>
 <textarea id="additionalInstructions" rows="3" placeholder="e.g., Emphasize leadership experience, downplay older roles..."></textarea>
+</div>
+<div class="form-group">
+<label style="display:flex;align-items:center;gap:10px;cursor:pointer">
+<input type="checkbox" id="generateCoverLetter" style="width:auto">
+<span>Also generate a cover letter (uses your experience + relevant projects)</span>
+</label>
 </div>
 <div class="generate-section">
 <button class="generate-btn" onclick="generateResume()">Generate ATS-Optimized Resume</button>
@@ -466,6 +532,15 @@ Paste Resume Text
 <div class="card" style="background:linear-gradient(135deg,#1a1a2e,#16213e)">
 <h4 style="color:#f59e0b;margin-bottom:15px">Recruiter Assessment</h4>
 <div id="recruiterAssessment" style="white-space:pre-wrap;line-height:1.8"></div>
+</div>
+
+<!-- Cover Letter Output -->
+<div class="card" style="margin-top:20px;display:none" id="coverLetterSection">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
+<h4 style="color:#10b981;margin:0">Cover Letter</h4>
+<button class="secondary" onclick="copyCoverLetter()" style="padding:6px 12px;font-size:0.85em">Copy</button>
+</div>
+<div id="coverLetterOutput" style="white-space:pre-wrap;line-height:1.8;color:#ddd"></div>
 </div>
 
 </div>
@@ -730,6 +805,7 @@ const state = {
   education: JSON.parse(localStorage.getItem('resumeEducation') || '[]'),
   certs: JSON.parse(localStorage.getItem('resumeCerts') || '[]'),
   skills: JSON.parse(localStorage.getItem('resumeSkills') || '{"technical":[],"soft":[],"tools":[],"interests":[]}'),
+  projects: JSON.parse(localStorage.getItem('resumeProjects') || '[]'),
   lastGenerated: null,
   libraryStats: null
 };
@@ -1126,6 +1202,165 @@ function removeSkill(type, i) {
   });
 });
 
+// Project functions
+function renderProjects() {
+  const list = document.getElementById('projectsList');
+  list.innerHTML = state.projects.map((proj, i) => `
+    <div class="item">
+      <div class="item-header">
+        <div>
+          <div class="item-title">${proj.name}</div>
+          <div class="item-subtitle">${proj.shortDesc || ''}</div>
+          <div style="margin-top:8px">
+            ${proj.tech ? proj.tech.split(',').map(t => `<span class="tag" style="margin-right:5px;margin-bottom:5px">${t.trim()}</span>`).join('') : ''}
+          </div>
+        </div>
+        <div class="item-actions">
+          <button class="secondary" onclick="editProject(${i})">Edit</button>
+          <button class="danger" onclick="deleteProject(${i})">Delete</button>
+        </div>
+      </div>
+      ${proj.features ? `
+        <div class="bullets" style="margin-top:10px">
+          ${proj.features.map(f => `<div class="bullet"><span class="bullet-dot">•</span><span>${f}</span></div>`).join('')}
+        </div>
+      ` : ''}
+      ${proj.url ? `<a href="${proj.url}" target="_blank" style="color:#6366f1;font-size:0.9em;display:block;margin-top:10px">${proj.url}</a>` : ''}
+    </div>
+  `).join('') || '<p style="color:#666;padding:20px;text-align:center">No projects added yet</p>';
+}
+
+function editProject(i) {
+  const proj = state.projects[i];
+  document.getElementById('projectModalTitle').textContent = 'Edit Project';
+  document.getElementById('projectEditIndex').value = i;
+  document.getElementById('projectName').value = proj.name || '';
+  document.getElementById('projectShortDesc').value = proj.shortDesc || '';
+  document.getElementById('projectTech').value = proj.tech || '';
+  document.getElementById('projectUrl').value = proj.url || '';
+  document.getElementById('projectFeatures').value = (proj.features || []).join('\n');
+  document.getElementById('projectReadme').value = proj.readme || '';
+  openModal('project');
+}
+
+function saveProject() {
+  const proj = {
+    name: document.getElementById('projectName').value,
+    shortDesc: document.getElementById('projectShortDesc').value,
+    tech: document.getElementById('projectTech').value,
+    url: document.getElementById('projectUrl').value,
+    features: document.getElementById('projectFeatures').value.split('\n').filter(f => f.trim()),
+    readme: document.getElementById('projectReadme').value
+  };
+
+  const editIndex = parseInt(document.getElementById('projectEditIndex').value);
+  if (editIndex >= 0) {
+    state.projects[editIndex] = proj;
+  } else {
+    state.projects.push(proj);
+  }
+
+  localStorage.setItem('resumeProjects', JSON.stringify(state.projects));
+  closeModal('project');
+  renderProjects();
+  saveUserData();
+
+  // Clear form
+  ['projectName', 'projectShortDesc', 'projectTech', 'projectUrl', 'projectFeatures', 'projectReadme'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('projectEditIndex').value = '-1';
+}
+
+function deleteProject(i) {
+  if (confirm('Delete this project?')) {
+    state.projects.splice(i, 1);
+    localStorage.setItem('resumeProjects', JSON.stringify(state.projects));
+    renderProjects();
+    saveUserData();
+  }
+}
+
+async function importFromGitHub() {
+  const url = document.getElementById('githubRepoUrl').value.trim();
+  const status = document.getElementById('githubImportStatus');
+
+  if (!url) {
+    status.textContent = 'Please enter a GitHub URL';
+    status.style.color = '#ef4444';
+    return;
+  }
+
+  // Extract owner/repo from URL
+  const match = url.match(/github\.com\/([^\/]+)\/([^\/]+)/);
+  if (!match) {
+    status.textContent = 'Invalid GitHub URL';
+    status.style.color = '#ef4444';
+    return;
+  }
+
+  const [, owner, repo] = match;
+  status.textContent = 'Fetching repository...';
+  status.style.color = '#888';
+
+  try {
+    // Fetch repo info
+    const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repo.replace('.git', '')}`);
+    if (!repoRes.ok) throw new Error('Repository not found or is private');
+    const repoData = await repoRes.json();
+
+    // Try to fetch README
+    let readme = '';
+    try {
+      const readmeRes = await fetch(`https://api.github.com/repos/${owner}/${repo.replace('.git', '')}/readme`);
+      if (readmeRes.ok) {
+        const readmeData = await readmeRes.json();
+        readme = atob(readmeData.content);
+      }
+    } catch (e) {
+      // README not found, that's okay
+    }
+
+    // Fetch languages
+    let tech = '';
+    try {
+      const langRes = await fetch(`https://api.github.com/repos/${owner}/${repo.replace('.git', '')}/languages`);
+      if (langRes.ok) {
+        const languages = await langRes.json();
+        tech = Object.keys(languages).join(', ');
+      }
+    } catch (e) {}
+
+    // Create project
+    const proj = {
+      name: repoData.name,
+      shortDesc: repoData.description || '',
+      tech: tech,
+      url: repoData.html_url,
+      features: [],
+      readme: readme
+    };
+
+    state.projects.push(proj);
+    localStorage.setItem('resumeProjects', JSON.stringify(state.projects));
+    renderProjects();
+    saveUserData();
+
+    status.textContent = 'Imported! Click Edit to add features/achievements.';
+    status.style.color = '#10b981';
+    document.getElementById('githubRepoUrl').value = '';
+
+  } catch (e) {
+    status.textContent = 'Error: ' + e.message;
+    status.style.color = '#ef4444';
+  }
+}
+
+function copyCoverLetter() {
+  const text = document.getElementById('coverLetterOutput').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Cover letter copied!');
+  });
+}
+
 // Generate resume
 async function generateResume() {
   const jobDescription = document.getElementById('jobDescription').value.trim();
@@ -1143,9 +1378,11 @@ async function generateResume() {
     education: state.education,
     certs: state.certs,
     skills: state.skills,
+    projects: state.projects,
     jobDescription: jobDescription,
     targetRole: document.getElementById('targetRole').value,
-    additionalInstructions: document.getElementById('additionalInstructions').value
+    additionalInstructions: document.getElementById('additionalInstructions').value,
+    includeCoverLetter: document.getElementById('generateCoverLetter').checked
   };
 
   try {
@@ -1187,6 +1424,16 @@ async function generateResume() {
     document.getElementById('tailoredSummary').textContent = data.tailoredSummary || 'Not available';
     document.getElementById('resumeOutput').textContent = data.resume;
     document.getElementById('recruiterAssessment').innerHTML = (data.recruiterAssessment || 'Not available').replace(/\n/g, '<br>');
+
+    // Show cover letter if generated
+    if (data.coverLetter) {
+      document.getElementById('coverLetterOutput').textContent = data.coverLetter;
+      document.getElementById('coverLetterSection').style.display = 'block';
+      state.lastGenerated.coverLetter = data.coverLetter;
+    } else {
+      document.getElementById('coverLetterSection').style.display = 'none';
+    }
+
     document.getElementById('output').style.display = 'block';
   } catch (e) {
     alert('Error generating resume: ' + e.message);
@@ -1859,11 +2106,13 @@ async function loadUserData() {
       if (data.education) state.education = data.education;
       if (data.certs) state.certs = data.certs;
       if (data.skills) state.skills = data.skills;
+      if (data.projects) state.projects = data.projects;
       loadProfile();
       renderExperience();
       renderEducation();
       renderCerts();
       renderSkills();
+      renderProjects();
     }
   } catch (e) {
     console.log('No saved data found');
@@ -1882,7 +2131,8 @@ async function saveUserData() {
         experience: state.experience,
         education: state.education,
         certs: state.certs,
-        skills: state.skills
+        skills: state.skills,
+        projects: state.projects
       })
     });
   } catch (e) {
@@ -2064,6 +2314,7 @@ renderExperience();
 renderEducation();
 renderCerts();
 renderSkills();
+renderProjects();
 setupAutoSave();
 updateDashboard();
 console.log('Claude Resume initialized');

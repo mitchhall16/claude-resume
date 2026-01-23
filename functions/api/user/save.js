@@ -3,7 +3,7 @@ export async function onRequestPost(context) {
 
   try {
     const data = await request.json();
-    const { email, profile, experience, education, certs, skills } = data;
+    const { email, profile, experience, education, certs, skills, projects } = data;
 
     if (!email) {
       return new Response(JSON.stringify({ error: 'Email required' }), {
@@ -13,7 +13,7 @@ export async function onRequestPost(context) {
     }
 
     // Store in KV
-    const userData = { profile, experience, education, certs, skills, updatedAt: new Date().toISOString() };
+    const userData = { profile, experience, education, certs, skills, projects, updatedAt: new Date().toISOString() };
     await env.RESUME_DATA.put('user:' + email, JSON.stringify(userData));
 
     return new Response(JSON.stringify({ success: true }), {

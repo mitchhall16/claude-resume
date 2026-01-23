@@ -3,10 +3,10 @@ export async function onRequestPost(context) {
 
   try {
     const data = await request.json();
-    const { profile, experience, education, certs, skills, jobDescription, targetRole, additionalInstructions } = data;
+    const { profile, experience, education, certs, skills, projects, jobDescription, targetRole, additionalInstructions, includeCoverLetter } = data;
 
     // Build the enhanced prompt based on ClaudeSkills approach
-    const prompt = buildEnhancedPrompt(profile, experience, education, certs, skills, jobDescription, targetRole, additionalInstructions);
+    const prompt = buildEnhancedPrompt(profile, experience, education, certs, skills, projects, jobDescription, targetRole, additionalInstructions, includeCoverLetter);
 
     // Call Claude API
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -54,7 +54,7 @@ export async function onRequestPost(context) {
   }
 }
 
-function buildEnhancedPrompt(profile, experience, education, certs, skills, jobDescription, targetRole, additionalInstructions) {
+function buildEnhancedPrompt(profile, experience, education, certs, skills, projects, jobDescription, targetRole, additionalInstructions, includeCoverLetter) {
   const experienceText = experience.map(exp => `
 **${exp.title}** at **${exp.company}** (${exp.location})
 ${exp.start} - ${exp.end || 'Present'}
@@ -67,6 +67,15 @@ ${edu.extras || ''}
 `).join('\n');
 
   const certsText = certs.map(c => `• ${c.name} - ${c.org} (${c.date})`).join('\n');
+
+  const projectsText = (projects || []).map(proj => `
+**${proj.name}**
+${proj.shortDesc || ''}
+Technologies: ${proj.tech || 'Not specified'}
+${proj.url ? `URL: ${proj.url}` : ''}
+${proj.features ? proj.features.map(f => '• ' + f).join('\n') : ''}
+${proj.readme ? `\nDetailed Description:\n${proj.readme.substring(0, 1000)}${proj.readme.length > 1000 ? '...' : ''}` : ''}
+`).join('\n');
 
   return `You are an expert resume customization system combining ATS optimization with recruiter-level strategic analysis. Follow this systematic 5-step process:
 
@@ -97,6 +106,9 @@ ${certsText || 'None'}
 **Soft Skills:** ${skills.soft?.join(', ') || 'None listed'}
 **Tools & Technologies:** ${skills.tools?.join(', ') || 'None listed'}
 **Personal Interests:** ${skills.interests?.join(', ') || 'None listed'}
+
+**Projects & Portfolio:**
+${projectsText || 'No projects provided'}
 
 ---
 
@@ -207,6 +219,17 @@ Respond in EXACTLY this format with these section markers:
 • [Transferable skill to highlight]
 • [Story that demonstrates fit]
 
+${includeCoverLetter ? `
+---COVER_LETTER---
+[Write a compelling cover letter that:
+- Opens with enthusiasm for the specific role and company
+- Highlights 2-3 most relevant experiences that match the job requirements
+- Mentions relevant projects if they demonstrate required skills
+- Shows understanding of the company's needs
+- Closes with a call to action
+- Keep it to 3-4 paragraphs, professional but personable tone
+- Do NOT use generic phrases like "I am writing to apply" - be creative]
+` : ''}
 ---END---
 `;
 }
@@ -236,6 +259,10 @@ function parseEnhancedResponse(content) {
   const resume = resumeMatch ? resumeMatch[1].trim() : content;
   const recruiterAssessment = recruiterMatch ? recruiterMatch[1].trim() : '';
 
+  // Extract cover letter if present
+  const coverLetterMatch = content.match(/---COVER_LETTER---\s*([\s\S]*?)(?=---END---|$)/);
+  const coverLetter = coverLetterMatch ? coverLetterMatch[1].trim() : null;
+
   return {
     score,
     matchedKeywords,
@@ -243,6 +270,7 @@ function parseEnhancedResponse(content) {
     relevanceRankings,
     tailoredSummary,
     resume,
-    recruiterAssessment
+    recruiterAssessment,
+    coverLetter
   };
 }
