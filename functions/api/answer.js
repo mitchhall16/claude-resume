@@ -45,6 +45,7 @@ ${(exp.bullets || []).map(b => '• ' + b).join('\n')}
 3. Use the EXACT project names, company names, and descriptions provided
 4. If something isn't in their background, DO NOT mention it
 5. Stick to facts from the data below - no creative additions
+6. If the question contains text in [brackets], treat it as a hint for what to focus on or include in your answer - e.g., "[mention handleof.it]" means emphasize that project, "[use robotics experience]" means focus on robotics-related work
 
 ## CANDIDATE'S BACKGROUND (USE ONLY THIS DATA)
 

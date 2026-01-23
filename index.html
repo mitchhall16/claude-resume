@@ -759,6 +759,14 @@ Reduced page load time by 60% through optimization"></textarea>
 </div>
 
 <div class="form-group">
+<label style="display:flex;justify-content:space-between;align-items:center">
+<span>Your Saved Questions</span>
+<button type="button" class="secondary small" onclick="saveQuestionPreset()" style="font-size:11px;padding:4px 10px">Save Current as Preset</button>
+</label>
+<div id="questionPresets" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
+</div>
+
+<div class="form-group">
 <label>Your Question</label>
 <textarea id="applicationQuestion" rows="3" placeholder="Type or select a question above..."></textarea>
 </div>
@@ -944,6 +952,7 @@ const state = {
   skills: JSON.parse(localStorage.getItem('resumeSkills') || '{"technical":[],"soft":[],"tools":[],"interests":[]}'),
   projects: JSON.parse(localStorage.getItem('resumeProjects') || '[]'),
   instructionPresets: JSON.parse(localStorage.getItem('instructionPresets') || '[]'),
+  questionPresets: JSON.parse(localStorage.getItem('questionPresets') || '[]'),
   lastGenerated: null,
   libraryStats: null
 };
@@ -2013,6 +2022,66 @@ function deletePreset(idx) {
   localStorage.setItem('instructionPresets', JSON.stringify(state.instructionPresets));
   saveUserData();
   loadInstructionPresets();
+}
+
+// Question presets
+function loadQuestionPresets() {
+  const presets = state.questionPresets || [];
+  const container = document.getElementById('questionPresets');
+
+  if (presets.length === 0) {
+    container.innerHTML = '<span style="color:#666;font-size:12px">No saved questions yet. Type a question and click "Save Current as Preset".</span>';
+    return;
+  }
+
+  container.innerHTML = presets.map((preset, idx) => `
+    <div class="preset-chip" style="display:inline-flex;align-items:center;gap:6px;background:#2a2a3e;padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid #444;transition:all 0.2s"
+         onmouseenter="this.style.borderColor='#00ff88'"
+         onmouseleave="this.style.borderColor='#444'">
+      <span onclick="addQuestionPreset(${idx})" style="color:#ddd">${escapeHtml(preset.name)}</span>
+      <span onclick="deleteQuestionPreset(${idx})" style="color:#888;font-size:14px;padding:0 2px" title="Delete preset">&times;</span>
+    </div>
+  `).join('');
+}
+
+function saveQuestionPreset() {
+  const text = document.getElementById('applicationQuestion').value.trim();
+  if (!text) {
+    alert('Please enter a question first');
+    return;
+  }
+
+  const name = prompt('Give this question a short name:', text.substring(0, 30) + (text.length > 30 ? '...' : ''));
+  if (!name) return;
+
+  // Check for duplicate names
+  if (state.questionPresets.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+    if (!confirm('A preset with this name already exists. Replace it?')) return;
+    const idx = state.questionPresets.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+    state.questionPresets[idx] = { name, text };
+  } else {
+    state.questionPresets.push({ name, text });
+  }
+
+  localStorage.setItem('questionPresets', JSON.stringify(state.questionPresets));
+  saveUserData();
+  loadQuestionPresets();
+  alert('Question preset saved!' + (currentUser ? ' Synced to your account.' : ''));
+}
+
+function addQuestionPreset(idx) {
+  const presets = state.questionPresets || [];
+  if (!presets[idx]) return;
+  document.getElementById('applicationQuestion').value = presets[idx].text;
+}
+
+function deleteQuestionPreset(idx) {
+  if (!confirm('Delete this question preset?')) return;
+
+  state.questionPresets.splice(idx, 1);
+  localStorage.setItem('questionPresets', JSON.stringify(state.questionPresets));
+  saveUserData();
+  loadQuestionPresets();
 }
 
 // Q&A Helper functions
@@ -3201,6 +3270,7 @@ async function loadUserData() {
       if (data.skills) state.skills = data.skills;
       if (data.projects) state.projects = data.projects;
       if (data.instructionPresets) state.instructionPresets = data.instructionPresets;
+      if (data.questionPresets) state.questionPresets = data.questionPresets;
       loadProfile();
       renderExperience();
       renderEducation();
@@ -3208,6 +3278,7 @@ async function loadUserData() {
       renderSkills();
       renderProjects();
       loadInstructionPresets();
+      loadQuestionPresets();
     }
   } catch (e) {
     console.log('No saved data found');
@@ -3228,7 +3299,8 @@ async function saveUserData() {
         certs: state.certs,
         skills: state.skills,
         projects: state.projects,
-        instructionPresets: state.instructionPresets
+        instructionPresets: state.instructionPresets,
+        questionPresets: state.questionPresets
       })
     });
   } catch (e) {
@@ -3412,6 +3484,7 @@ renderCerts();
 renderSkills();
 renderProjects();
 loadInstructionPresets();
+loadQuestionPresets();
 setupAutoSave();
 updateDashboard();
 console.log('Claude Resume initialized v3');
