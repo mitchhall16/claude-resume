@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      width: 350px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      padding: 16px;
+    }
+    h1 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: #00ff88;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h1 span {
+      font-size: 20px;
+    }
+    .section {
+      background: #2a2a3e;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .section h2 {
+      font-size: 12px;
+      color: #888;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .field {
+      margin-bottom: 8px;
+    }
+    .field:last-child {
+      margin-bottom: 0;
+    }
+    label {
+      display: block;
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #444;
+      border-radius: 4px;
+      background: #1a1a2e;
+      color: #fff;
+      font-size: 13px;
+    }
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: #00ff88;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #00ff88, #00cc6a);
+      color: #000;
+    }
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 255, 136, 0.3);
+    }
+    .btn-secondary {
+      background: #3a3a4e;
+      color: #fff;
+      margin-top: 8px;
+    }
+    .btn-secondary:hover {
+      background: #4a4a5e;
+    }
+    .status {
+      text-align: center;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-top: 12px;
+      display: none;
+    }
+    .status.success {
+      display: block;
+      background: rgba(0, 255, 136, 0.2);
+      color: #00ff88;
+    }
+    .status.error {
+      display: block;
+      background: rgba(255, 100, 100, 0.2);
+      color: #ff6464;
+    }
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+    .tab {
+      flex: 1;
+      padding: 8px;
+      background: #2a2a3e;
+      border: none;
+      border-radius: 4px;
+      color: #888;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .tab.active {
+      background: #3a3a4e;
+      color: #00ff88;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .sync-info {
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+      margin-top: 8px;
+    }
+    .sync-info a {
+      color: #00ff88;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h1><span>📄</span> Resume AutoFill</h1>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="fill">Fill Form</button>
+    <button class="tab" data-tab="profile">My Profile</button>
+  </div>
+
+  <div id="fillTab" class="tab-content active">
+    <div class="section">
+      <h2>Quick Fill</h2>
+      <p style="font-size:12px;color:#aaa;margin-bottom:12px">Click to auto-fill the current job application page with your saved profile data.</p>
+      <button class="btn btn-primary" id="fillBtn">Auto-Fill This Page</button>
+      <button class="btn btn-secondary" id="fillBasicBtn">Fill Basic Info Only</button>
+    </div>
+    <div id="status" class="status"></div>
+    <p class="sync-info">
+      Manage full profile at <a href="https://claude-resume.pages.dev" target="_blank">claude-resume</a>
+    </p>
+  </div>
+
+  <div id="profileTab" class="tab-content">
+    <div class="section">
+      <h2>Basic Info</h2>
+      <div class="field">
+        <label>Full Name</label>
+        <input type="text" id="fullName" placeholder="John Doe">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="john@example.com">
+      </div>
+      <div class="field">
+        <label>Phone</label>
+        <input type="tel" id="phone" placeholder="(555) 123-4567">
+      </div>
+      <div class="field">
+        <label>Location</label>
+        <input type="text" id="location" placeholder="San Francisco, CA">
+      </div>
+      <div class="field">
+        <label>LinkedIn URL</label>
+        <input type="url" id="linkedin" placeholder="https://linkedin.com/in/johndoe">
+      </div>
+      <div class="field">
+        <label>Portfolio/Website</label>
+        <input type="url" id="website" placeholder="https://johndoe.com">
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Work Authorization</h2>
+      <div class="field">
+        <label>Are you authorized to work in the US?</label>
+        <select id="workAuth" style="width:100%;padding:8px;border:1px solid #444;border-radius:4px;background:#1a1a2e;color:#fff">
+          <option value="">Select...</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Will you now or in the future require sponsorship?</label>
+        <select id="sponsorship" style="width:100%;padding:8px;border:1px solid #444;border-radius:4px;background:#1a1a2e;color:#fff">
+          <option value="">Select...</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="saveBtn">Save Profile</button>
+    <button class="btn btn-secondary" id="importBtn">Import from claude-resume</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
