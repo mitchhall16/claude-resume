@@ -80,8 +80,8 @@ button.small{padding:6px 12px;font-size:0.85em}
 .score{font-size:4em;font-weight:700;background:linear-gradient(135deg,#00ff88,#00cc6a);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .score-label{color:#888;margin-top:10px}
 .keywords{margin-top:20px}
-.keyword-match{color:#00ff88}
-.keyword-missing{color:#ff6b6b}
+.keyword-match{display:inline-block;background:#00ff8820;color:#00ff88;padding:4px 10px;border-radius:15px;font-size:12px;margin:3px}
+.keyword-missing{display:inline-block;background:#ff6b6b20;color:#ff6b6b;padding:4px 10px;border-radius:15px;font-size:12px;margin:3px}
 .resume-output{background:#1a1a1a;border:1px solid #333;border-radius:12px;padding:30px;white-space:pre-wrap;font-family:'Courier New',monospace;line-height:1.8}
 .copy-btn{position:absolute;top:15px;right:15px}
 .loading{display:none;text-align:center;padding:40px}
@@ -2105,12 +2105,16 @@ async function generateResume() {
     document.getElementById('atsScore').textContent = data.score + '%';
     document.getElementById('keywordAnalysis').innerHTML = `
       <div style="margin-top:15px">
-        <strong>Matched Keywords:</strong>
-        ${data.matchedKeywords.map(k => `<span class="keyword-match">${k}</span>`).join(', ')}
+        <strong style="display:block;margin-bottom:8px">Matched Keywords:</strong>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${data.matchedKeywords.map(k => `<span class="keyword-match">${k}</span>`).join('')}
+        </div>
       </div>
-      <div style="margin-top:10px">
-        <strong>Consider Adding:</strong>
-        ${data.missingKeywords.map(k => `<span class="keyword-missing">${k}</span>`).join(', ')}
+      <div style="margin-top:15px">
+        <strong style="display:block;margin-bottom:8px">Consider Adding:</strong>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${data.missingKeywords.map(k => `<span class="keyword-missing">${k}</span>`).join('')}
+        </div>
       </div>
     `;
     document.getElementById('relevanceRankings').textContent = data.relevanceRankings || 'Not available';
