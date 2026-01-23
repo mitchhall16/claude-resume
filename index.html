@@ -190,7 +190,7 @@ Sign in with Google
 <div class="tab" data-tab="generate">Generate</div>
 <div class="tab" data-tab="batch">Batch Jobs</div>
 <div class="tab" data-tab="library">Library<span class="tab-badge" id="libraryBadge" style="display:none">0</span></div>
-<div class="tab" data-tab="resources">Best Practices</div>
+<div class="tab" data-tab="questions">Q&A Helper</div>
 </div>
 
 <!-- Dashboard Panel -->
@@ -732,48 +732,65 @@ Reduced page load time by 60% through optimization"></textarea>
 </div>
 </div>
 
-<!-- Resources Panel -->
-<div class="panel" id="resources">
-<h2>ATS Best Practices & Resources</h2>
-<div class="resources-grid">
-<div class="resource-card">
-<h4>Resume Format</h4>
-<ul class="resource-list">
-<li>Use standard section headers (Experience, Education, Skills)</li>
-<li>Stick to common fonts (Arial, Calibri, Times New Roman)</li>
-<li>Avoid tables, graphics, and complex formatting</li>
-<li>Use .docx or .pdf format</li>
-<li>Keep to 1-2 pages maximum</li>
-</ul>
+<!-- Questions Helper Panel -->
+<div class="panel" id="questions">
+<h2>Application Q&A Helper</h2>
+<p style="color:#888;margin-bottom:20px">Generate tailored answers to common application questions using your experience data.</p>
+
+<div class="form-group">
+<label>Common Questions (click to use)</label>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:15px">
+<button class="secondary small" onclick="setQuestion('Why do you want to work at [Company]?')">Why this company?</button>
+<button class="secondary small" onclick="setQuestion('Tell me about a time you solved a difficult technical problem.')">Problem solving</button>
+<button class="secondary small" onclick="setQuestion('Describe a situation where you demonstrated leadership.')">Leadership</button>
+<button class="secondary small" onclick="setQuestion('Tell me about a time you had to work under pressure or meet a tight deadline.')">Working under pressure</button>
+<button class="secondary small" onclick="setQuestion('Describe a time you had a conflict with a coworker and how you resolved it.')">Conflict resolution</button>
+<button class="secondary small" onclick="setQuestion('What is your greatest professional achievement?')">Greatest achievement</button>
+<button class="secondary small" onclick="setQuestion('Tell me about a time you failed and what you learned from it.')">Learning from failure</button>
+<button class="secondary small" onclick="setQuestion('Why are you leaving your current job?')">Why leaving?</button>
+<button class="secondary small" onclick="setQuestion('Where do you see yourself in 5 years?')">5 year plan</button>
+<button class="secondary small" onclick="setQuestion('What makes you a good fit for this role?')">Good fit</button>
 </div>
-<div class="resource-card">
-<h4>Keywords Strategy</h4>
-<ul class="resource-list">
-<li>Mirror exact phrases from job description</li>
-<li>Include both acronyms and full terms (SQL, Structured Query Language)</li>
-<li>Use industry-standard job titles</li>
-<li>Include required certifications by name</li>
-</ul>
 </div>
-<div class="resource-card">
-<h4>Power Action Verbs</h4>
-<ul class="resource-list">
-<li><strong>Led</strong> - Led team of 5 engineers...</li>
-<li><strong>Developed</strong> - Developed microservices...</li>
-<li><strong>Increased</strong> - Increased revenue by 40%...</li>
-<li><strong>Reduced</strong> - Reduced costs by $50K...</li>
-<li><strong>Implemented</strong> - Implemented CI/CD pipeline...</li>
-</ul>
+
+<div class="form-group">
+<label>Your Question</label>
+<textarea id="applicationQuestion" rows="3" placeholder="Type or select a question above..."></textarea>
 </div>
-<div class="resource-card">
-<h4>Metrics That Matter</h4>
-<ul class="resource-list">
-<li>Revenue impact ($, %)</li>
-<li>Time saved (hours, days)</li>
-<li>Team size managed</li>
-<li>User/customer numbers</li>
-<li>Performance improvements (%)</li>
-</ul>
+
+<div class="form-group">
+<label>Job Description / Company Info (optional - for context)</label>
+<textarea id="questionContext" rows="4" placeholder="Paste the job description or company info to get more tailored answers..."></textarea>
+</div>
+
+<div class="form-group">
+<label>Answer Length</label>
+<select id="answerLength">
+<option value="short">Short (2-3 sentences)</option>
+<option value="medium" selected>Medium (1 paragraph)</option>
+<option value="long">Long (2-3 paragraphs / STAR format)</option>
+</select>
+</div>
+
+<button class="generate-btn" onclick="generateAnswer()" id="generateAnswerBtn">Generate Answer</button>
+
+<div class="loading" id="answerLoading">
+<div class="spinner"></div>
+<p>Crafting your answer based on your experience...</p>
+</div>
+
+<div id="answerOutput" style="display:none;margin-top:20px">
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
+<h4 style="color:#00ff88;margin:0">Generated Answer</h4>
+<button class="secondary small" onclick="copyAnswer()">Copy</button>
+</div>
+<div id="answerText" style="white-space:pre-wrap;line-height:1.8;color:#ddd"></div>
+</div>
+
+<div class="card" style="margin-top:15px;background:linear-gradient(135deg,#1a1a2e,#16213e)">
+<h4 style="color:#f59e0b;margin-bottom:10px">Tips for Delivery</h4>
+<div id="answerTips" style="color:#aaa;line-height:1.8"></div>
 </div>
 </div>
 </div>
@@ -1989,6 +2006,70 @@ function deletePreset(idx) {
   localStorage.setItem('instructionPresets', JSON.stringify(state.instructionPresets));
   saveUserData();
   loadInstructionPresets();
+}
+
+// Q&A Helper functions
+function setQuestion(question) {
+  document.getElementById('applicationQuestion').value = question;
+}
+
+async function generateAnswer() {
+  const question = document.getElementById('applicationQuestion').value.trim();
+  if (!question) {
+    alert('Please enter a question');
+    return;
+  }
+
+  const context = document.getElementById('questionContext').value.trim();
+  const length = document.getElementById('answerLength').value;
+
+  document.getElementById('answerLoading').classList.add('active');
+  document.getElementById('answerOutput').style.display = 'none';
+
+  const btn = document.getElementById('generateAnswerBtn');
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/answer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question,
+        context,
+        length,
+        profile: state.profile,
+        experience: state.experience,
+        education: state.education,
+        skills: state.skills,
+        projects: state.projects
+      })
+    });
+
+    if (!res.ok) throw new Error('Failed to generate answer');
+
+    const data = await res.json();
+
+    document.getElementById('answerText').textContent = data.answer;
+    document.getElementById('answerTips').innerHTML = data.tips || '';
+    document.getElementById('answerOutput').style.display = 'block';
+
+  } catch (e) {
+    alert('Error generating answer: ' + e.message);
+  } finally {
+    document.getElementById('answerLoading').classList.remove('active');
+    btn.disabled = false;
+  }
+}
+
+function copyAnswer() {
+  const text = document.getElementById('answerText').textContent;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Answer copied!');
+    }).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
 }
 
 async function fetchJobFromUrl() {
