@@ -295,6 +295,12 @@ Paste Resume Text
 </div>
 </div>
 <div id="importStatus" style="color:#00ff88;font-size:0.9em"></div>
+
+<div style="margin-top:20px;padding-top:20px;border-top:1px solid #333">
+<label style="color:#00ff88;font-weight:600">Export for Browser Extension</label>
+<p style="color:#888;font-size:0.85em;margin:5px 0 10px">Copy your profile data to use with the AutoFill extension</p>
+<button onclick="exportForExtension()" class="secondary" style="width:100%">Copy Profile Data</button>
+</div>
 </div>
 
 <!-- Resume Text Modal -->
@@ -3306,6 +3312,30 @@ async function saveUserData() {
   } catch (e) {
     console.error('Save failed:', e);
   }
+}
+
+// Export for browser extension
+function exportForExtension() {
+  const profile = state.profile || {};
+  const extensionData = {
+    fullName: profile.fullName || '',
+    email: profile.email || '',
+    phone: profile.phone || '',
+    location: profile.location || '',
+    linkedin: profile.linkedin || '',
+    website: profile.github || profile.portfolio || '',
+    workAuth: 'yes',
+    sponsorship: 'no'
+  };
+
+  const jsonStr = JSON.stringify(extensionData);
+  navigator.clipboard.writeText(jsonStr).then(() => {
+    const status = document.getElementById('importStatus');
+    status.innerHTML = '<strong>Copied!</strong> Go to extension → My Profile → click "Import from Clipboard"';
+    setTimeout(() => status.textContent = '', 5000);
+  }).catch(() => {
+    prompt('Copy this data manually:', jsonStr);
+  });
 }
 
 // LinkedIn ZIP Parser

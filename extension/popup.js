@@ -40,12 +40,39 @@ document.getElementById('saveBtn').addEventListener('click', () => {
   });
 });
 
-// Import from claude-resume (tries to fetch from localStorage via content script)
+// Import from clipboard
 document.getElementById('importBtn').addEventListener('click', async () => {
-  // Open claude-resume in a new tab to sync
-  chrome.tabs.create({ url: 'https://claude-resume.pages.dev' }, (tab) => {
-    showStatus('Opening claude-resume - copy your data from there', 'success');
-  });
+  try {
+    const text = await navigator.clipboard.readText();
+    const data = JSON.parse(text);
+
+    // Validate it looks like profile data
+    if (!data.fullName && !data.email) {
+      showStatus('Invalid data. Copy from claude-resume first.', 'error');
+      return;
+    }
+
+    // Fill in the form
+    document.getElementById('fullName').value = data.fullName || '';
+    document.getElementById('email').value = data.email || '';
+    document.getElementById('phone').value = data.phone || '';
+    document.getElementById('location').value = data.location || '';
+    document.getElementById('linkedin').value = data.linkedin || '';
+    document.getElementById('website').value = data.website || '';
+    document.getElementById('workAuth').value = data.workAuth || '';
+    document.getElementById('sponsorship').value = data.sponsorship || '';
+
+    // Save to storage
+    chrome.storage.local.set({ profile: data }, () => {
+      showStatus('Profile imported and saved!', 'success');
+    });
+  } catch (e) {
+    if (e.name === 'SyntaxError') {
+      showStatus('Invalid data format. Copy from claude-resume.', 'error');
+    } else {
+      showStatus('Could not read clipboard. Allow clipboard access.', 'error');
+    }
+  }
 });
 
 // Auto-fill button
