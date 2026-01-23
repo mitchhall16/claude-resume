@@ -1843,10 +1843,22 @@ async function importFromGitHub() {
 }
 
 function copyCoverLetter() {
-  const text = document.getElementById('coverLetterOutput').textContent;
-  navigator.clipboard.writeText(text).then(() => {
-    alert('Cover letter copied!');
-  });
+  const text = document.getElementById('coverLetterOutput').innerText || document.getElementById('coverLetterOutput').textContent;
+  if (!text || text.trim() === '') {
+    alert('No cover letter content to copy.');
+    return;
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Cover letter copied!');
+    }).catch(err => {
+      console.error('Clipboard API failed:', err);
+      fallbackCopy(text);
+    });
+  } else {
+    fallbackCopy(text);
+  }
 }
 
 // Generate resume
@@ -1977,10 +1989,39 @@ async function saveCurrentResume() {
 }
 
 function copyResume() {
-  const text = document.getElementById('resumeOutput').textContent;
-  navigator.clipboard.writeText(text).then(() => {
+  const text = document.getElementById('resumeOutput').innerText || document.getElementById('resumeOutput').textContent;
+  if (!text || text.trim() === '') {
+    alert('No resume content to copy. Please generate a resume first.');
+    return;
+  }
+
+  // Try modern clipboard API first, fall back to execCommand
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Copied to clipboard!');
+    }).catch(err => {
+      console.error('Clipboard API failed:', err);
+      fallbackCopy(text);
+    });
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.select();
+  try {
+    document.execCommand('copy');
     alert('Copied to clipboard!');
-  });
+  } catch (err) {
+    alert('Failed to copy. Please select and copy manually.');
+  }
+  document.body.removeChild(textarea);
 }
 
 // Batch processing functions
@@ -2368,10 +2409,21 @@ function closeResumeDetail() {
 }
 
 function copyResumeFromDetail() {
-  if (state.currentResumeDetail?.resume) {
-    navigator.clipboard.writeText(state.currentResumeDetail.resume).then(() => {
+  const text = state.currentResumeDetail?.resume;
+  if (!text) {
+    alert('No resume content to copy.');
+    return;
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
       alert('Copied to clipboard!');
+    }).catch(err => {
+      console.error('Clipboard API failed:', err);
+      fallbackCopy(text);
     });
+  } else {
+    fallbackCopy(text);
   }
 }
 
@@ -2888,31 +2940,56 @@ function downloadPDF() {
     return;
   }
 
-  // Populate PDF template from current state and generated resume
-  populatePDFTemplate();
+  // Check if html2pdf is loaded
+  if (typeof html2pdf === 'undefined') {
+    alert('PDF library not loaded. Please refresh the page and try again.');
+    return;
+  }
 
-  // Get the element
-  const element = document.getElementById('pdfContent');
-  element.style.display = 'block';
+  try {
+    // Populate PDF template from current state and generated resume
+    populatePDFTemplate();
 
-  // Configure options for html2pdf
-  const opt = {
-    margin: 0,
-    filename: `${state.profile.fullName || 'Resume'}_${state.lastGenerated.company || 'Resume'}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-  };
+    // Get the elements - need to show parent template too
+    const template = document.getElementById('pdfTemplate');
+    const element = document.getElementById('pdfContent');
+    if (!element || !template) {
+      alert('PDF template not found. Please refresh the page.');
+      return;
+    }
 
-  // Generate PDF
-  html2pdf().set(opt).from(element).save().then(() => {
-    element.style.display = 'none';
-  }).catch(err => {
-    console.error('PDF generation error:', err);
-    alert('Error generating PDF. Please try again.');
-    element.style.display = 'none';
-  });
+    // Show both template and content for rendering
+    template.style.display = 'block';
+    element.style.display = 'block';
+
+    // Clean filename
+    const safeName = (state.profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
+    const safeCompany = (state.lastGenerated.company || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
+
+    // Configure options for html2pdf
+    const opt = {
+      margin: 0,
+      filename: `${safeName}_${safeCompany}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+    };
+
+    // Generate PDF
+    html2pdf().set(opt).from(element).save().then(() => {
+      template.style.display = 'none';
+      element.style.display = 'none';
+    }).catch(err => {
+      console.error('PDF generation error:', err);
+      alert('Error generating PDF: ' + err.message);
+      template.style.display = 'none';
+      element.style.display = 'none';
+    });
+  } catch (err) {
+    console.error('PDF setup error:', err);
+    alert('Error setting up PDF: ' + err.message);
+  }
 }
 
 function populatePDFTemplate() {
@@ -3079,30 +3156,55 @@ function downloadCoverLetterPDF() {
     return;
   }
 
-  // Populate cover letter PDF template
-  populateCoverLetterPDFTemplate();
+  // Check if html2pdf is loaded
+  if (typeof html2pdf === 'undefined') {
+    alert('PDF library not loaded. Please refresh the page and try again.');
+    return;
+  }
 
-  // Get the element
-  const element = document.getElementById('coverLetterPdfContent');
-  element.style.display = 'block';
+  try {
+    // Populate cover letter PDF template
+    populateCoverLetterPDFTemplate();
 
-  // Configure options for html2pdf
-  const opt = {
-    margin: 0,
-    filename: `Cover_Letter_${state.profile.fullName || 'Cover_Letter'}_${state.lastGenerated.company || ''}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, letterRendering: true },
-    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-  };
+    // Get the elements - need to show parent template too
+    const template = document.getElementById('coverLetterPdfTemplate');
+    const element = document.getElementById('coverLetterPdfContent');
+    if (!element || !template) {
+      alert('Cover letter PDF template not found. Please refresh the page.');
+      return;
+    }
 
-  // Generate PDF
-  html2pdf().set(opt).from(element).save().then(() => {
-    element.style.display = 'none';
-  }).catch(err => {
-    console.error('Cover letter PDF generation error:', err);
-    alert('Error generating PDF. Please try again.');
-    element.style.display = 'none';
-  });
+    // Show both template and content for rendering
+    template.style.display = 'block';
+    element.style.display = 'block';
+
+    // Clean filename
+    const safeName = (state.profile.fullName || 'Cover_Letter').replace(/[^a-zA-Z0-9]/g, '_');
+    const safeCompany = (state.lastGenerated.company || '').replace(/[^a-zA-Z0-9]/g, '_');
+
+    // Configure options for html2pdf
+    const opt = {
+      margin: 0,
+      filename: `Cover_Letter_${safeName}_${safeCompany}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    // Generate PDF
+    html2pdf().set(opt).from(element).save().then(() => {
+      template.style.display = 'none';
+      element.style.display = 'none';
+    }).catch(err => {
+      console.error('Cover letter PDF generation error:', err);
+      alert('Error generating PDF: ' + err.message);
+      template.style.display = 'none';
+      element.style.display = 'none';
+    });
+  } catch (err) {
+    console.error('Cover letter PDF setup error:', err);
+    alert('Error setting up PDF: ' + err.message);
+  }
 }
 
 function populateCoverLetterPDFTemplate() {
