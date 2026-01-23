@@ -488,8 +488,25 @@ Reduced page load time by 60% through optimization"></textarea>
 <!-- Generate Panel -->
 <div class="panel" id="generate">
 <h2>Generate Tailored Resume</h2>
+
+<!-- Job URL Import -->
 <div class="form-group">
-<label>Paste Job Description</label>
+<label>Import from Job URL</label>
+<div style="display:flex;gap:10px">
+<input type="url" id="jobUrl" placeholder="https://job-boards.greenhouse.io/company/jobs/123..." style="flex:1">
+<button onclick="fetchJobFromUrl()" class="secondary" id="fetchJobBtn">Fetch Job</button>
+</div>
+<small style="color:#888;margin-top:5px;display:block">Supports Greenhouse, Lever, Ashby, and most job boards</small>
+</div>
+
+<div style="display:flex;align-items:center;gap:15px;margin:15px 0;color:#666">
+<div style="flex:1;height:1px;background:#333"></div>
+<span>or paste manually</span>
+<div style="flex:1;height:1px;background:#333"></div>
+</div>
+
+<div class="form-group">
+<label>Job Description</label>
 <textarea id="jobDescription" rows="10" placeholder="Paste the full job description here..."></textarea>
 </div>
 <div class="grid-2">
@@ -1858,6 +1875,66 @@ function copyCoverLetter() {
     });
   } else {
     fallbackCopy(text);
+  }
+}
+
+// Fetch job from URL
+async function fetchJobFromUrl() {
+  const urlInput = document.getElementById('jobUrl');
+  const url = urlInput.value.trim();
+
+  if (!url) {
+    alert('Please enter a job posting URL');
+    return;
+  }
+
+  const btn = document.getElementById('fetchJobBtn');
+  const originalText = btn.textContent;
+  btn.textContent = 'Fetching...';
+  btn.disabled = true;
+
+  try {
+    const response = await fetch('/api/fetch-job', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+      alert('Error fetching job: ' + data.error);
+      return;
+    }
+
+    // Populate the form fields
+    if (data.description) {
+      document.getElementById('jobDescription').value = data.description;
+    }
+    if (data.company) {
+      document.getElementById('jobCompany').value = data.company;
+    }
+    if (data.title) {
+      document.getElementById('targetRole').value = data.title;
+    }
+
+    // Show success message
+    const msg = [];
+    if (data.company) msg.push(data.company);
+    if (data.title) msg.push(data.title);
+    if (data.location) msg.push(data.location);
+
+    if (msg.length > 0) {
+      alert('Imported: ' + msg.join(' - '));
+    } else if (data.description) {
+      alert('Job description imported. Company/title could not be detected - please fill in manually.');
+    }
+
+  } catch (e) {
+    alert('Error fetching job: ' + e.message);
+  } finally {
+    btn.textContent = originalText;
+    btn.disabled = false;
   }
 }
 
