@@ -57,6 +57,9 @@ button.small{padding:6px 12px;font-size:0.85em}
 .tag{background:#333;padding:6px 12px;border-radius:20px;font-size:0.85em;display:flex;align-items:center;gap:6px}
 .tag-remove{cursor:pointer;color:#888}
 .tag-remove:hover{color:#ef4444}
+.tech-tag{background:linear-gradient(135deg,#1e3a5f,#1a1a2e);padding:4px 10px;border-radius:12px;font-size:0.8em;color:#60a5fa;border:1px solid #2563eb33;white-space:nowrap}
+.feature-chip{background:#1a1a2e;padding:6px 12px;border-radius:8px;font-size:0.85em;color:#a5b4fc;border:1px solid #4f46e533;line-height:1.4}
+.ai-badge{background:linear-gradient(135deg,#8b5cf6,#6366f1);padding:3px 10px;border-radius:12px;font-size:0.7em;color:#fff;font-weight:500;white-space:nowrap}
 .tag-input{display:flex;gap:10px;margin-top:10px}
 .tag-input input{flex:1}
 .tag-input button{white-space:nowrap}
@@ -412,13 +415,16 @@ Paste Resume Text
 
 <div class="card" style="margin-top:30px;background:linear-gradient(135deg,#1a1a2e,#16213e)">
 <h4 style="color:#8b5cf6;margin-bottom:15px">Import from GitHub</h4>
-<p style="color:#888;font-size:0.9em;margin-bottom:15px">For private repos, paste the README content or describe the project manually above.</p>
+<p style="color:#888;font-size:0.9em;margin-bottom:15px">Enter your GitHub username to browse and import your public repositories. <span style="color:#f59e0b">Note: These are public repos - anyone can view them on GitHub.</span></p>
 <div class="form-group">
-<label>GitHub Repository URL (public repos only)</label>
-<input type="url" id="githubRepoUrl" placeholder="https://github.com/username/repo">
+<label>GitHub Username or Profile URL</label>
+<div style="display:flex;gap:10px">
+<input type="text" id="githubUsername" placeholder="username or https://github.com/username" style="flex:1">
+<button onclick="fetchGitHubRepos()" class="secondary">Fetch Repos</button>
 </div>
-<button onclick="importFromGitHub()" class="secondary">Import Public Repo</button>
-<span id="githubImportStatus" style="margin-left:10px;color:#888"></span>
+</div>
+<span id="githubFetchStatus" style="color:#888;font-size:0.9em"></span>
+<div id="githubReposList" style="margin-top:15px;max-height:400px;overflow-y:auto"></div>
 </div>
 </div>
 
@@ -442,9 +448,15 @@ Paste Resume Text
 <label>Technologies Used (comma-separated)</label>
 <input type="text" id="projectTech" placeholder="React, Node.js, PostgreSQL, Stripe API">
 </div>
+<div class="grid-2">
 <div class="form-group">
-<label>Project URL (optional)</label>
-<input type="url" id="projectUrl" placeholder="https://github.com/you/project or live URL">
+<label>GitHub/Repo URL</label>
+<input type="url" id="projectUrl" placeholder="https://github.com/you/project">
+</div>
+<div class="form-group">
+<label>Live Demo URL</label>
+<input type="url" id="projectLiveUrl" placeholder="https://yourproject.com">
+</div>
 </div>
 <div class="form-group">
 <label>Key Features & Achievements (one per line)</label>
@@ -456,6 +468,16 @@ Reduced page load time by 60% through optimization"></textarea>
 <div class="form-group">
 <label>Detailed Description / README (optional - helps AI understand the project)</label>
 <textarea id="projectReadme" rows="6" placeholder="Paste README content or detailed project description..."></textarea>
+<div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
+<button type="button" onclick="aiExtractFromReadme()" class="secondary" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)">
+  <span id="aiExtractBtnText">Extract with AI</span>
+</button>
+<span id="extractStatus" style="font-size:0.85em;color:#888"></span>
+</div>
+</div>
+<div class="form-group" style="display:flex;align-items:center;gap:10px">
+<input type="checkbox" id="projectAiAssisted" style="width:auto;margin:0">
+<label for="projectAiAssisted" style="margin:0;cursor:pointer">Built with AI assistance (adds badge)</label>
 </div>
 <button onclick="saveProject()">Save Project</button>
 </div>
@@ -720,10 +742,35 @@ Reduced page load time by 60% through optimization"></textarea>
 </div>
 </div>
 <div class="form-group">
-<label>Bullet Points (one per line - use metrics!)</label>
-<textarea id="expBullets" rows="6" placeholder="Led development of microservices architecture serving 1M+ users
-Reduced API response time by 40% through caching optimization
-Mentored 3 junior developers, improving team velocity by 25%"></textarea>
+<label>Bullet Points (one per line - rough notes OK, AI will enhance)</label>
+<textarea id="expBullets" rows="6" placeholder="managed team of developers
+built new features for the app
+helped reduce bugs and improve performance
+worked with clients on requirements"></textarea>
+<div style="display:flex;gap:20px;margin-top:8px;margin-bottom:8px;flex-wrap:wrap">
+  <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;color:#a5b4fc;font-size:0.9em">
+    <input type="radio" name="enhanceMode" value="cleanup" style="margin-top:3px">
+    <span><strong>Clean Up</strong><br><span style="color:#888;font-size:0.85em">Fix grammar, keep structure</span></span>
+  </label>
+  <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;color:#a5b4fc;font-size:0.9em">
+    <input type="radio" name="enhanceMode" value="supercharge" checked style="margin-top:3px">
+    <span><strong>Supercharge</strong><br><span style="color:#888;font-size:0.85em">Rewrite for impact, can add metrics</span></span>
+  </label>
+</div>
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<button type="button" onclick="enhanceExpBullets()" class="secondary" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)">
+  <span id="enhanceBtnText">Enhance with AI</span>
+</button>
+<span id="enhanceStatus" style="font-size:0.85em;color:#888"></span>
+</div>
+<div id="enhancePreview" style="display:none;margin-top:15px;background:#1a1a2e;border-radius:8px;padding:15px;border:1px solid #8b5cf633">
+<div style="color:#8b5cf6;font-weight:500;margin-bottom:10px">Enhanced Preview:</div>
+<div id="enhancePreviewContent" style="color:#a5b4fc;font-size:0.9em;line-height:1.6"></div>
+<div style="display:flex;gap:10px;margin-top:15px">
+<button type="button" onclick="applyEnhanced()" style="background:#10b981">Apply Changes</button>
+<button type="button" onclick="cancelEnhanced()" class="secondary">Keep Original</button>
+</div>
+</div>
 </div>
 <button onclick="saveExperience()">Save Experience</button>
 </div>
@@ -1039,6 +1086,81 @@ function editExperience(i) {
   openModal('experience');
 }
 
+let pendingEnhancedBullets = null;
+
+async function enhanceExpBullets() {
+  const bullets = document.getElementById('expBullets').value;
+  const title = document.getElementById('expTitle').value;
+  const company = document.getElementById('expCompany').value;
+  const status = document.getElementById('enhanceStatus');
+  const btn = document.getElementById('enhanceBtnText');
+  const preview = document.getElementById('enhancePreview');
+
+  if (!bullets.trim()) {
+    status.textContent = 'Add some bullet points first';
+    status.style.color = '#ef4444';
+    return;
+  }
+
+  btn.textContent = 'Enhancing...';
+  status.textContent = '';
+  preview.style.display = 'none';
+
+  try {
+    const enhanceMode = document.querySelector('input[name="enhanceMode"]:checked').value;
+    const response = await fetch('/api/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'enhance', bullets, title, company, enhanceMode })
+    });
+
+    const text = await response.text();
+    if (!text) {
+      throw new Error('Server returned empty response. Try again.');
+    }
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (parseErr) {
+      throw new Error('Invalid response from server: ' + text.substring(0, 100));
+    }
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Enhancement failed');
+    }
+
+    pendingEnhancedBullets = data.bullets;
+    document.getElementById('enhancePreviewContent').innerHTML = data.bullets.map(b => `• ${b}`).join('<br>');
+    preview.style.display = 'block';
+    status.textContent = 'Review the enhanced version below';
+    status.style.color = '#8b5cf6';
+
+  } catch (e) {
+    status.textContent = 'Error: ' + e.message;
+    status.style.color = '#ef4444';
+  } finally {
+    btn.textContent = 'Enhance with AI';
+  }
+}
+
+function applyEnhanced() {
+  if (pendingEnhancedBullets) {
+    document.getElementById('expBullets').value = pendingEnhancedBullets.join('\n');
+    document.getElementById('enhanceStatus').textContent = 'Applied!';
+    document.getElementById('enhanceStatus').style.color = '#10b981';
+  }
+  document.getElementById('enhancePreview').style.display = 'none';
+  pendingEnhancedBullets = null;
+}
+
+function cancelEnhanced() {
+  document.getElementById('enhancePreview').style.display = 'none';
+  document.getElementById('enhanceStatus').textContent = 'Kept original';
+  document.getElementById('enhanceStatus').style.color = '#888';
+  pendingEnhancedBullets = null;
+}
+
 function saveExperience() {
   const exp = {
     title: document.getElementById('expTitle').value,
@@ -1208,11 +1330,14 @@ function renderProjects() {
   list.innerHTML = state.projects.map((proj, i) => `
     <div class="item">
       <div class="item-header">
-        <div>
-          <div class="item-title">${proj.name}</div>
+        <div style="flex:1">
+          <div class="item-title" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            ${proj.name}
+            ${proj.aiAssisted ? '<span class="ai-badge">Built with AI</span>' : ''}
+          </div>
           <div class="item-subtitle">${proj.shortDesc || ''}</div>
-          <div style="margin-top:8px">
-            ${proj.tech ? proj.tech.split(',').map(t => `<span class="tag" style="margin-right:5px;margin-bottom:5px">${t.trim()}</span>`).join('') : ''}
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+            ${proj.tech ? proj.tech.split(',').map(t => `<span class="tech-tag">${t.trim()}</span>`).join('') : ''}
           </div>
         </div>
         <div class="item-actions">
@@ -1220,12 +1345,15 @@ function renderProjects() {
           <button class="danger" onclick="deleteProject(${i})">Delete</button>
         </div>
       </div>
-      ${proj.features ? `
-        <div class="bullets" style="margin-top:10px">
-          ${proj.features.map(f => `<div class="bullet"><span class="bullet-dot">•</span><span>${f}</span></div>`).join('')}
+      ${proj.features && proj.features.length ? `
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+          ${proj.features.map(f => `<span class="feature-chip">${f}</span>`).join('')}
         </div>
       ` : ''}
-      ${proj.url ? `<a href="${proj.url}" target="_blank" style="color:#6366f1;font-size:0.9em;display:block;margin-top:10px">${proj.url}</a>` : ''}
+      <div style="display:flex;gap:15px;margin-top:10px;flex-wrap:wrap;align-items:center">
+        ${proj.url ? `<a href="${proj.url}" target="_blank" style="color:#fff;font-size:0.9em;display:flex;align-items:center;gap:5px">${proj.url.includes('github') ? '<svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> GitHub' : '📁 Repo'}</a>` : ''}
+        ${proj.liveUrl ? `<a href="${proj.liveUrl}" target="_blank" style="color:#10b981;font-size:0.9em;display:flex;align-items:center;gap:5px"><svg height="14" width="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg> Live</a>` : ''}
+      </div>
     </div>
   `).join('') || '<p style="color:#666;padding:20px;text-align:center">No projects added yet</p>';
 }
@@ -1238,8 +1366,10 @@ function editProject(i) {
   document.getElementById('projectShortDesc').value = proj.shortDesc || '';
   document.getElementById('projectTech').value = proj.tech || '';
   document.getElementById('projectUrl').value = proj.url || '';
+  document.getElementById('projectLiveUrl').value = proj.liveUrl || '';
   document.getElementById('projectFeatures').value = (proj.features || []).join('\n');
   document.getElementById('projectReadme').value = proj.readme || '';
+  document.getElementById('projectAiAssisted').checked = proj.aiAssisted || false;
   openModal('project');
 }
 
@@ -1249,8 +1379,10 @@ function saveProject() {
     shortDesc: document.getElementById('projectShortDesc').value,
     tech: document.getElementById('projectTech').value,
     url: document.getElementById('projectUrl').value,
+    liveUrl: document.getElementById('projectLiveUrl').value,
     features: document.getElementById('projectFeatures').value.split('\n').filter(f => f.trim()),
-    readme: document.getElementById('projectReadme').value
+    readme: document.getElementById('projectReadme').value,
+    aiAssisted: document.getElementById('projectAiAssisted').checked
   };
 
   const editIndex = parseInt(document.getElementById('projectEditIndex').value);
@@ -1266,8 +1398,81 @@ function saveProject() {
   saveUserData();
 
   // Clear form
-  ['projectName', 'projectShortDesc', 'projectTech', 'projectUrl', 'projectFeatures', 'projectReadme'].forEach(id => document.getElementById(id).value = '');
+  ['projectName', 'projectShortDesc', 'projectTech', 'projectUrl', 'projectLiveUrl', 'projectFeatures', 'projectReadme'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('projectEditIndex').value = '-1';
+  document.getElementById('projectAiAssisted').checked = false;
+}
+
+async function aiExtractFromReadme() {
+  const readme = document.getElementById('projectReadme').value;
+  const status = document.getElementById('extractStatus');
+  const btn = document.getElementById('aiExtractBtnText');
+
+  if (!readme.trim()) {
+    status.textContent = 'Paste a README first';
+    status.style.color = '#ef4444';
+    return;
+  }
+
+  btn.textContent = 'Extracting...';
+  status.textContent = '';
+
+  try {
+    const response = await fetch('/api/parse', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'extract', readme })
+    });
+
+    const text = await response.text();
+    if (!text) {
+      throw new Error('Server returned empty response. Try again.');
+    }
+
+    let extracted;
+    try {
+      extracted = JSON.parse(text);
+    } catch (parseErr) {
+      throw new Error('Invalid response from server: ' + text.substring(0, 100));
+    }
+
+    if (!response.ok) {
+      const debugInfo = extracted.debug ? ` | Debug: ${JSON.stringify(extracted.debug)}` : '';
+      throw new Error((extracted.error || 'AI extraction failed') + debugInfo);
+    }
+
+    // Populate short description if empty
+    const shortDescField = document.getElementById('projectShortDesc');
+    if (!shortDescField.value.trim() && extracted.shortDesc) {
+      shortDescField.value = extracted.shortDesc;
+    }
+
+    // Populate features
+    const featuresField = document.getElementById('projectFeatures');
+    const existingFeatures = featuresField.value.split('\n').filter(f => f.trim());
+    const newFeatures = [...new Set([...existingFeatures, ...extracted.features])];
+    featuresField.value = newFeatures.join('\n');
+
+    // Populate tech
+    const techField = document.getElementById('projectTech');
+    const existingTech = techField.value.split(',').map(t => t.trim()).filter(t => t);
+    const newTech = [...new Set([...existingTech, ...extracted.technologies])];
+    techField.value = newTech.join(', ');
+
+    const parts = [];
+    if (extracted.shortDesc) parts.push('description');
+    if (extracted.features.length) parts.push(`${extracted.features.length} features`);
+    if (extracted.technologies.length) parts.push(`${extracted.technologies.length} technologies`);
+
+    status.textContent = `Extracted ${parts.join(', ')}!`;
+    status.style.color = '#10b981';
+
+  } catch (e) {
+    status.textContent = 'Error: ' + e.message;
+    status.style.color = '#ef4444';
+  } finally {
+    btn.textContent = 'Extract with AI';
+  }
 }
 
 function deleteProject(i) {
@@ -1279,9 +1484,257 @@ function deleteProject(i) {
   }
 }
 
+function extractFromReadme(readme) {
+  const features = [];
+  const technologies = [];
+  const lines = readme.split('\n');
+  let currentSection = null;
+
+  // Sections to extract features from
+  const featureSections = /^#{1,3}\s*(features|key features|highlights|what it does|what is|core features|main features)/i;
+  // Sections to extract technologies from
+  const techSections = /^#{1,3}\s*(tech stack|technologies|built with|stack|why this stack)/i;
+  // Sections to skip entirely
+  const skipSections = /^#{1,3}\s*(roadmap|development roadmap|ui layout|layout|installation|setup|getting started|contributing|license|acknowledgments|credits|todo|future|planned|usage|example|api|bom|bill of materials|templates|configuration|config|how it works|formula|variance|production|sandbox|escalation|detailed)/i;
+
+  // Pattern to detect code/formula-like content (not real features)
+  const codePattern = /(\→|→|=>|=\s*\d|×|\*\s*\d|ceil\(|floor\(|Math\.|^\d+\s*(oz|ml|g|kg|lb|towels?|applications?)|\$\{|function |const |let |var |import |export |class |handleof\.it|sampling\.|\.com|\.io|http)/i;
+
+  // Pattern for feature-like content (has a dash separator with description)
+  const featureWithDescPattern = /^(.+?)\s*[-–—]\s*(.+)$/;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+
+    // Check for section headers
+    if (/^#{1,3}\s+/.test(line)) {
+      if (featureSections.test(line)) {
+        currentSection = 'features';
+      } else if (techSections.test(line)) {
+        currentSection = 'tech';
+      } else if (skipSections.test(line)) {
+        currentSection = 'skip';
+      } else {
+        // Check for numbered feature headers like "1. Task Management"
+        const numberedHeader = line.match(/^#{1,3}\s*\d+\.\s*(.+)/);
+        if (numberedHeader && currentSection === 'features') {
+          const headerFeature = numberedHeader[1].trim();
+          if (headerFeature.length > 3 && headerFeature.length < 50 && !codePattern.test(headerFeature)) {
+            features.push(headerFeature);
+          }
+        }
+        // Don't change section for sub-headers within features
+        if (currentSection !== 'features') {
+          currentSection = null;
+        }
+      }
+      continue;
+    }
+
+    // Skip if in a skip section
+    if (currentSection === 'skip') continue;
+
+    // Extract bullet points (- or * at start of line)
+    const bulletMatch = line.match(/^[-*]\s+(.+)/);
+    if (bulletMatch) {
+      let item = bulletMatch[1].trim();
+      // Clean up markdown formatting
+      item = item.replace(/\*\*([^*]+)\*\*/g, '$1'); // Remove bold
+      item = item.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'); // Clean links
+      item = item.replace(/`([^`]+)`/g, '$1'); // Remove code backticks
+
+      // Skip if it looks like code, formula, or technical spec
+      if (codePattern.test(item)) continue;
+
+      // Check if it's a "Feature - Description" format
+      const featureDescMatch = item.match(featureWithDescPattern);
+      if (featureDescMatch && currentSection === 'features') {
+        const featureName = featureDescMatch[1].trim();
+        const featureDesc = featureDescMatch[2].trim();
+        if (featureName.length > 2 && featureDesc.length > 5) {
+          features.push(`${featureName} - ${featureDesc}`);
+          continue;
+        }
+      }
+
+      if (currentSection === 'tech' && item.length > 1 && item.length < 100) {
+        technologies.push(item);
+      } else if (currentSection === 'features' && item.length > 10 && item.length < 200) {
+        features.push(item);
+      } else if (!currentSection && item.length > 20 && item.length < 200 && features.length < 4) {
+        // Only add uncategorized bullets if they look like real features
+        if (!/^(install|clone|run|npm|yarn|cd |git |mkdir|pip |python |docker |curl |wget )/i.test(item)) {
+          features.push(item);
+        }
+      }
+    }
+  }
+
+  return {
+    features: [...new Set(features)].slice(0, 8),
+    technologies: [...new Set(technologies)].slice(0, 15)
+  };
+}
+
+async function fetchGitHubRepos() {
+  const input = document.getElementById('githubUsername').value.trim();
+  const status = document.getElementById('githubFetchStatus');
+  const listEl = document.getElementById('githubReposList');
+
+  if (!input) {
+    status.textContent = 'Please enter a GitHub username';
+    status.style.color = '#ef4444';
+    return;
+  }
+
+  // Extract username from URL or use as-is
+  let username = input;
+  const urlMatch = input.match(/github\.com\/([^\/]+)/);
+  if (urlMatch) username = urlMatch[1];
+
+  status.textContent = 'Fetching repositories...';
+  status.style.color = '#888';
+  listEl.innerHTML = '';
+
+  try {
+    const res = await fetch(`https://api.github.com/users/${username}/repos?per_page=100&sort=updated`);
+    if (!res.ok) throw new Error('User not found');
+    const repos = await res.json();
+
+    if (repos.length === 0) {
+      status.textContent = 'No public repositories found';
+      return;
+    }
+
+    status.textContent = `Found ${repos.length} public repositories`;
+    status.style.color = '#10b981';
+
+    // Check which repos are already imported
+    const importedUrls = new Set(state.projects.map(p => p.url));
+
+    listEl.innerHTML = repos.map(repo => {
+      const isImported = importedUrls.has(repo.html_url);
+      return `
+        <div class="github-repo-item" style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:#1a1a1a;border-radius:8px;margin-bottom:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:500;color:#fff">${repo.name}</div>
+            <div style="font-size:0.85em;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${repo.description || 'No description'}</div>
+            <div style="font-size:0.8em;color:#666;margin-top:4px">
+              ${repo.language ? `<span style="color:#60a5fa">${repo.language}</span> · ` : ''}
+              ⭐ ${repo.stargazers_count} · Updated ${new Date(repo.updated_at).toLocaleDateString()}
+            </div>
+          </div>
+          <button
+            onclick="importGitHubRepo('${username}', '${repo.name}')"
+            class="${isImported ? '' : 'secondary'}"
+            style="margin-left:10px;white-space:nowrap${isImported ? ';background:#333;color:#666;cursor:default' : ''}"
+            ${isImported ? 'disabled' : ''}
+          >${isImported ? 'Imported' : 'Import'}</button>
+        </div>
+      `;
+    }).join('');
+
+  } catch (e) {
+    status.textContent = 'Error: ' + e.message;
+    status.style.color = '#ef4444';
+  }
+}
+
+async function importGitHubRepo(owner, repoName) {
+  // Find and update the button
+  const buttons = document.querySelectorAll('.github-repo-item button');
+  let btn = null;
+  buttons.forEach(b => {
+    if (b.onclick && b.onclick.toString().includes(repoName)) {
+      btn = b;
+    }
+  });
+
+  // Find button by checking parent content
+  const items = document.querySelectorAll('.github-repo-item');
+  items.forEach(item => {
+    if (item.textContent.includes(repoName)) {
+      btn = item.querySelector('button');
+    }
+  });
+
+  if (btn) {
+    btn.textContent = 'Importing...';
+    btn.disabled = true;
+  }
+
+  try {
+    // Fetch repo info
+    const repoRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}`);
+    if (!repoRes.ok) throw new Error('Repository not found');
+    const repoData = await repoRes.json();
+
+    // Try to fetch README
+    let readme = '';
+    let extractedFeatures = [];
+    let extractedTech = [];
+    try {
+      const readmeRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}/readme`);
+      if (readmeRes.ok) {
+        const readmeData = await readmeRes.json();
+        const binaryString = atob(readmeData.content.replace(/\n/g, ''));
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        readme = new TextDecoder('utf-8').decode(bytes);
+        const extracted = extractFromReadme(readme);
+        extractedFeatures = extracted.features;
+        extractedTech = extracted.technologies;
+      }
+    } catch (e) {}
+
+    // Fetch languages
+    let apiLanguages = [];
+    try {
+      const langRes = await fetch(`https://api.github.com/repos/${owner}/${repoName}/languages`);
+      if (langRes.ok) {
+        const languages = await langRes.json();
+        apiLanguages = Object.keys(languages);
+      }
+    } catch (e) {}
+
+    const allTech = [...new Set([...apiLanguages, ...extractedTech])];
+
+    const proj = {
+      name: repoData.name,
+      shortDesc: repoData.description || '',
+      tech: allTech.join(', '),
+      url: repoData.html_url,
+      features: extractedFeatures,
+      readme: readme
+    };
+
+    state.projects.push(proj);
+    localStorage.setItem('resumeProjects', JSON.stringify(state.projects));
+    renderProjects();
+    saveUserData();
+
+    if (btn) {
+      btn.textContent = 'Imported';
+      btn.className = '';
+      btn.style.background = '#333';
+      btn.style.color = '#666';
+    }
+
+  } catch (e) {
+    if (btn) {
+      btn.textContent = 'Error';
+      btn.style.background = '#ef4444';
+    }
+    console.error('Import error:', e);
+  }
+}
+
 async function importFromGitHub() {
-  const url = document.getElementById('githubRepoUrl').value.trim();
+  const url = document.getElementById('githubRepoUrl')?.value?.trim();
   const status = document.getElementById('githubImportStatus');
+  if (!status) return;
 
   if (!url) {
     status.textContent = 'Please enter a GitHub URL';
@@ -1309,25 +1762,42 @@ async function importFromGitHub() {
 
     // Try to fetch README
     let readme = '';
+    let extractedFeatures = [];
+    let extractedTech = [];
     try {
       const readmeRes = await fetch(`https://api.github.com/repos/${owner}/${repo.replace('.git', '')}/readme`);
       if (readmeRes.ok) {
         const readmeData = await readmeRes.json();
-        readme = atob(readmeData.content);
+        // Properly decode base64 with UTF-8 support (fixes emoji/special char issues)
+        const binaryString = atob(readmeData.content.replace(/\n/g, ''));
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        readme = new TextDecoder('utf-8').decode(bytes);
+
+        // Extract features and technologies from README
+        const extracted = extractFromReadme(readme);
+        extractedFeatures = extracted.features;
+        extractedTech = extracted.technologies;
       }
     } catch (e) {
       // README not found, that's okay
     }
 
-    // Fetch languages
-    let tech = '';
+    // Fetch languages from GitHub API
+    let apiLanguages = [];
     try {
       const langRes = await fetch(`https://api.github.com/repos/${owner}/${repo.replace('.git', '')}/languages`);
       if (langRes.ok) {
         const languages = await langRes.json();
-        tech = Object.keys(languages).join(', ');
+        apiLanguages = Object.keys(languages);
       }
     } catch (e) {}
+
+    // Merge technologies: API languages + README tech stack (deduplicated)
+    const allTech = [...new Set([...apiLanguages, ...extractedTech])];
+    const tech = allTech.join(', ');
 
     // Create project
     const proj = {
@@ -1335,7 +1805,7 @@ async function importFromGitHub() {
       shortDesc: repoData.description || '',
       tech: tech,
       url: repoData.html_url,
-      features: [],
+      features: extractedFeatures,
       readme: readme
     };
 
@@ -1344,7 +1814,14 @@ async function importFromGitHub() {
     renderProjects();
     saveUserData();
 
-    status.textContent = 'Imported! Click Edit to add features/achievements.';
+    const featureCount = extractedFeatures.length;
+    const techCount = allTech.length;
+    const parts = [];
+    if (featureCount > 0) parts.push(`${featureCount} features`);
+    if (techCount > 0) parts.push(`${techCount} technologies`);
+    status.textContent = parts.length > 0
+      ? `Imported with ${parts.join(' and ')} extracted!`
+      : 'Imported! Click Edit to add features/achievements.';
     status.style.color = '#10b981';
     document.getElementById('githubRepoUrl').value = '';
 
@@ -2317,7 +2794,7 @@ renderSkills();
 renderProjects();
 setupAutoSave();
 updateDashboard();
-console.log('Claude Resume initialized');
+console.log('Claude Resume initialized v2');
 </script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </body>
