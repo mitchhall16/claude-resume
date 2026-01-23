@@ -37,9 +37,16 @@ ${(exp.bullets || []).map(b => '• ' + b).join('\n')}
       long: 'Write 2-3 paragraphs using the STAR format (Situation, Task, Action, Result). Be detailed and specific.'
     };
 
-    const prompt = `You are helping a job candidate answer an application question. Use their actual experience to craft an authentic, compelling answer.
+    const prompt = `You are helping a job candidate answer an application question. Use ONLY their actual experience provided below.
 
-## CANDIDATE'S BACKGROUND
+## CRITICAL RULES
+1. ONLY mention companies, projects, roles, and details that are EXPLICITLY listed below
+2. DO NOT invent, hallucinate, or embellish ANY details
+3. Use the EXACT project names, company names, and descriptions provided
+4. If something isn't in their background, DO NOT mention it
+5. Stick to facts from the data below - no creative additions
+
+## CANDIDATE'S BACKGROUND (USE ONLY THIS DATA)
 
 **Name:** ${profile?.fullName || 'Not provided'}
 **Summary:** ${profile?.summary || 'Not provided'}
@@ -50,7 +57,7 @@ ${experienceText || 'No experience provided'}
 **Skills:**
 ${skillsText || 'No skills provided'}
 
-**Projects:**
+**Projects (USE EXACT NAMES):**
 ${projectsText || 'No projects provided'}
 
 **Education:**
@@ -64,11 +71,11 @@ ${question}
 ## INSTRUCTIONS
 ${lengthInstructions[length] || lengthInstructions.medium}
 
-Write in first person as the candidate. Be specific - reference actual roles, companies, projects, and achievements from their background. Don't make up experiences they don't have.
+Write in first person as the candidate. Reference ONLY the actual roles, companies, projects, and achievements listed above. Use EXACT names - do not change or "improve" project names or company names.
 
-If the question is "Why do you want to work at [Company]?" and no company context is provided, write a template answer they can customize.
+If the question is "Why do you want to work at [Company]?" and no company context is provided, write a template answer they can customize with [brackets] for company-specific details.
 
-Sound natural and conversational, not robotic. Show personality while remaining professional.
+Sound natural and conversational, not robotic.
 
 ## OUTPUT FORMAT
 Respond with JSON only:
