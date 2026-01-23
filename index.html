@@ -3503,7 +3503,6 @@ function parseResumeExperience(resumeText) {
   if (!resumeText) return '';
 
   // Parse the plain text resume to extract experience section
-  // The generated resume format typically has EXPERIENCE section with job entries
   const lines = resumeText.split('\n');
   let inExperience = false;
   let expHtml = '';
@@ -3512,13 +3511,15 @@ function parseResumeExperience(resumeText) {
 
   for (const line of lines) {
     const trimmed = line.trim();
+    // Remove markdown bold markers for parsing
+    const cleanLine = trimmed.replace(/\*\*/g, '').replace(/\*/g, '');
 
     // Detect section headers
-    if (/^(EXPERIENCE|PROFESSIONAL EXPERIENCE|WORK EXPERIENCE)/i.test(trimmed)) {
+    if (/^(EXPERIENCE|PROFESSIONAL EXPERIENCE|WORK EXPERIENCE|WORK HISTORY)/i.test(cleanLine)) {
       inExperience = true;
       continue;
     }
-    if (/^(EDUCATION|SKILLS|PROJECTS|CERTIFICATIONS|TECHNICAL SKILLS)/i.test(trimmed)) {
+    if (/^(EDUCATION|SKILLS|PROJECTS|CERTIFICATIONS|TECHNICAL SKILLS|KEY PROJECTS)/i.test(cleanLine)) {
       // Save last job before exiting
       if (currentJob) {
         expHtml += formatJobEntry(currentJob, bullets);
@@ -3529,25 +3530,53 @@ function parseResumeExperience(resumeText) {
       continue;
     }
 
-    if (inExperience && trimmed) {
-      // Check if this is a new job entry (usually has job title and company on same or adjacent lines)
-      // Common patterns: "Job Title | Company | Location | Dates" or "Job Title - Company"
-      if (trimmed.includes('|') && !trimmed.startsWith('-') && !trimmed.startsWith('•')) {
+    if (inExperience && cleanLine) {
+      // Check if this is a new job entry
+      const hasPipe = cleanLine.includes('|');
+      const isNotBullet = !trimmed.startsWith('-') && !trimmed.startsWith('•') && !trimmed.match(/^\d+\./);
+
+      if (hasPipe && isNotBullet) {
         // Save previous job
         if (currentJob) {
           expHtml += formatJobEntry(currentJob, bullets);
           bullets = [];
         }
-        const parts = trimmed.split('|').map(p => p.trim());
+        const parts = cleanLine.split('|').map(p => p.trim());
         currentJob = {
           title: parts[0] || '',
           company: parts[1] || '',
           location: parts[2] || '',
           dates: parts[3] || ''
         };
-      } else if ((trimmed.startsWith('-') || trimmed.startsWith('•') || trimmed.startsWith('*')) && currentJob) {
-        // This is a bullet point
-        bullets.push(trimmed.replace(/^[-•*]\s*/, ''));
+      } else if (isNotBullet && /^[A-Z][a-z]+\s+(at|@)\s+[A-Z]/i.test(cleanLine)) {
+        // Pattern: "Title at Company"
+        if (currentJob) {
+          expHtml += formatJobEntry(currentJob, bullets);
+          bullets = [];
+        }
+        const match = cleanLine.match(/^(.+?)\s+(?:at|@)\s+(.+?)(?:\s*[,|]\s*(.+?))?(?:\s*[,|]\s*(.+))?$/i);
+        if (match) {
+          currentJob = {
+            title: match[1] || '',
+            company: match[2] || '',
+            location: match[3] || '',
+            dates: match[4] || ''
+          };
+        }
+      } else if (currentJob) {
+        // Check for bullets
+        if (trimmed.startsWith('-') || trimmed.startsWith('•')) {
+          const bullet = trimmed.replace(/^[-•]\s*/, '').replace(/\*\*/g, '');
+          if (bullet.length > 10) {
+            bullets.push(bullet);
+          }
+        }
+        // Also catch lines starting with action verbs
+        else if (/^(Led|Managed|Developed|Built|Created|Designed|Implemented|Executed|Deployed|Configured|Conducted|Diagnosed|Served|Partnered|Optimized|Orchestrated|Collaborated|Applied|Established|Increased|Reduced)\s/i.test(cleanLine)) {
+          if (cleanLine.length > 30) {
+            bullets.push(cleanLine);
+          }
+        }
       }
     }
   }
