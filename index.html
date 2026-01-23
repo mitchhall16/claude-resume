@@ -2773,7 +2773,14 @@ async function viewResumeDetail(resumeId) {
         </div>
       </div>
 
-      ${resume.jobUrl ? `<p style="margin-bottom:15px"><a href="${resume.jobUrl}" target="_blank" style="color:#6366f1">View Original Job Posting</a></p>` : ''}
+      <div style="margin-bottom:20px">
+        <label style="display:block;margin-bottom:8px;color:#888">Job Posting URL</label>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input type="url" id="resumeJobUrl" value="${resume.jobUrl || ''}" placeholder="https://..." style="flex:1">
+          <button onclick="saveResumeJobUrl('${resumeId}')" class="secondary small">Save URL</button>
+          ${resume.jobUrl ? `<a href="${resume.jobUrl}" target="_blank" style="color:#6366f1;font-size:12px">Open ↗</a>` : ''}
+        </div>
+      </div>
 
       <div style="margin-bottom:20px">
         <strong>Matched Keywords:</strong>
@@ -2898,6 +2905,31 @@ async function saveResumeNotes(resumeId) {
     alert('Notes saved!');
   } catch (e) {
     alert('Error saving notes: ' + e.message);
+  }
+}
+
+async function saveResumeJobUrl(resumeId) {
+  if (!currentUser) return;
+
+  const jobUrl = document.getElementById('resumeJobUrl').value;
+
+  try {
+    const res = await fetch('/api/applications/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: currentUser.email,
+        resumeId,
+        jobUrl
+      })
+    });
+
+    if (!res.ok) throw new Error('Failed to save URL');
+
+    alert('Job URL saved!');
+    loadLibrary(); // Refresh library to show updated URL
+  } catch (e) {
+    alert('Error saving URL: ' + e.message);
   }
 }
 
