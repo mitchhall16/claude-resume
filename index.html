@@ -2723,7 +2723,7 @@ async function loadLibrary() {
         </div>
         <div class="resume-meta">
           <span>Created ${formatDate(r.createdAt)}</span>
-          ${r.matchedKeywords?.length > 0 ? `<span>${r.matchedKeywords.length} keywords matched</span>` : ''}
+          ${(r.matchedKeywordsCount || r.matchedKeywords?.length) > 0 ? `<span>${r.matchedKeywordsCount || r.matchedKeywords.length} keywords matched</span>` : ''}
         </div>
       </div>
     `).join('');

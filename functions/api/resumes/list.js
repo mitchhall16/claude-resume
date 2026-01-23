@@ -84,7 +84,8 @@ export async function onRequestGet(context) {
       jobUrl: r.jobUrl,
       score: r.score,
       status: r.status || 'generated',
-      matchedKeywords: r.matchedKeywords?.slice(0, 5) || [],
+      matchedKeywords: r.matchedKeywords || [],
+      matchedKeywordsCount: r.matchedKeywords?.length || 0,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
       notes: r.notes
