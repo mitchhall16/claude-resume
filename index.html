@@ -520,8 +520,13 @@ Reduced page load time by 60% through optimization"></textarea>
 </div>
 </div>
 <div class="form-group">
-<label>Additional Instructions (optional)</label>
+<label style="display:flex;justify-content:space-between;align-items:center">
+<span>Additional Instructions (optional)</span>
+<button type="button" class="secondary small" onclick="saveInstructionPreset()" style="font-size:11px;padding:4px 10px">Save as Preset</button>
+</label>
+<div id="instructionPresets" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
 <textarea id="additionalInstructions" rows="3" placeholder="e.g., Emphasize leadership experience, downplay older roles..."></textarea>
+<small style="color:#666;margin-top:5px;display:block">Click presets above to add them. Combine multiple for different job types.</small>
 </div>
 <div class="form-group">
 <label style="display:flex;align-items:center;gap:10px;cursor:pointer">
@@ -1914,6 +1919,77 @@ function copyCoverLetter() {
 }
 
 // Fetch job from URL
+// Instruction presets
+function loadInstructionPresets() {
+  const presets = JSON.parse(localStorage.getItem('instructionPresets') || '[]');
+  const container = document.getElementById('instructionPresets');
+
+  if (presets.length === 0) {
+    container.innerHTML = '<span style="color:#666;font-size:12px">No saved presets yet. Type instructions and click "Save as Preset".</span>';
+    return;
+  }
+
+  container.innerHTML = presets.map((preset, idx) => `
+    <div class="preset-chip" style="display:inline-flex;align-items:center;gap:6px;background:#2a2a3e;padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer;border:1px solid #444;transition:all 0.2s"
+         onmouseenter="this.style.borderColor='#00ff88'"
+         onmouseleave="this.style.borderColor='#444'">
+      <span onclick="addPresetToInstructions(${idx})" style="color:#ddd">${escapeHtml(preset.name)}</span>
+      <span onclick="deletePreset(${idx})" style="color:#888;font-size:14px;padding:0 2px" title="Delete preset">&times;</span>
+    </div>
+  `).join('');
+}
+
+function saveInstructionPreset() {
+  const text = document.getElementById('additionalInstructions').value.trim();
+  if (!text) {
+    alert('Please enter some instructions first');
+    return;
+  }
+
+  const name = prompt('Give this preset a short name:', text.substring(0, 30) + (text.length > 30 ? '...' : ''));
+  if (!name) return;
+
+  const presets = JSON.parse(localStorage.getItem('instructionPresets') || '[]');
+
+  // Check for duplicate names
+  if (presets.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+    if (!confirm('A preset with this name already exists. Replace it?')) return;
+    const idx = presets.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+    presets[idx] = { name, text };
+  } else {
+    presets.push({ name, text });
+  }
+
+  localStorage.setItem('instructionPresets', JSON.stringify(presets));
+  loadInstructionPresets();
+  alert('Preset saved!');
+}
+
+function addPresetToInstructions(idx) {
+  const presets = JSON.parse(localStorage.getItem('instructionPresets') || '[]');
+  if (!presets[idx]) return;
+
+  const textarea = document.getElementById('additionalInstructions');
+  const currentText = textarea.value.trim();
+  const presetText = presets[idx].text;
+
+  // Add to existing instructions (avoid duplicates)
+  if (currentText.includes(presetText)) {
+    return; // Already added
+  }
+
+  textarea.value = currentText ? currentText + '\n\n' + presetText : presetText;
+}
+
+function deletePreset(idx) {
+  if (!confirm('Delete this preset?')) return;
+
+  const presets = JSON.parse(localStorage.getItem('instructionPresets') || '[]');
+  presets.splice(idx, 1);
+  localStorage.setItem('instructionPresets', JSON.stringify(presets));
+  loadInstructionPresets();
+}
+
 async function fetchJobFromUrl() {
   const urlInput = document.getElementById('jobUrl');
   const url = urlInput.value.trim();
@@ -3128,9 +3204,10 @@ renderEducation();
 renderCerts();
 renderSkills();
 renderProjects();
+loadInstructionPresets();
 setupAutoSave();
 updateDashboard();
-console.log('Claude Resume initialized v2');
+console.log('Claude Resume initialized v3');
 </script>
 
 <!-- Hidden PDF Template -->
