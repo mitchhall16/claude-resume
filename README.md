@@ -19,38 +19,34 @@ AI-Powered ATS Resume Builder that tailors your resume for every job application
 
 ```mermaid
 flowchart TB
-    subgraph "Frontend (index.html)"
+    subgraph Frontend
         UI[Tab-Based UI]
         State[State Object]
-        LocalStorage[localStorage]
+        LocalStorage[(localStorage)]
     end
 
-    subgraph "Cloudflare Pages"
-        subgraph "Functions (Workers)"
-            Parse[/api/parse]
-            Generate[/api/generate]
-            Batch[/api/batch/process]
-            Save[/api/user/save]
-            Load[/api/user/load]
-            ResumesSave[/api/resumes/save]
-            ResumesList[/api/resumes/list]
-            AppUpdate[/api/applications/update]
+    subgraph CloudflarePages[Cloudflare Pages]
+        subgraph Workers[API Functions]
+            Parse[parse]
+            Generate[generate]
+            Batch[batch process]
+            UserAPI[user save/load]
+            ResumesAPI[resumes API]
+            AppsAPI[applications API]
         end
         KV[(Cloudflare KV)]
     end
 
-    subgraph "External Services"
+    subgraph External[External Services]
         Claude[Claude API]
         Google[Google OAuth]
     end
 
     UI --> State
     State <--> LocalStorage
-    UI --> Parse & Generate & Batch
-    UI --> Save & Load
-    UI --> ResumesSave & ResumesList & AppUpdate
-    Parse & Generate & Batch --> Claude
-    Save & Load & ResumesSave & ResumesList --> KV
+    UI --> Workers
+    Workers --> Claude
+    Workers --> KV
     UI --> Google
 ```
 
@@ -69,18 +65,18 @@ flowchart TD
     Dashboard --> Batch[Batch Processing]
     Dashboard --> Library[Resume Library]
 
-    subgraph "Data Import Options"
+    subgraph DataImport[Data Import Options]
         Import --> Paste[Paste Resume Text]
         Import --> LinkedIn[Upload LinkedIn ZIP]
         Import --> Manual[Manual Entry]
-        Paste --> AIparse[AI Parse to Structured Data]
-        LinkedIn --> ZIPparse[Extract CSV Data]
+        Paste --> AIparse[AI Parse]
+        LinkedIn --> ZIPparse[Extract CSV]
         AIparse --> PopulateState
         ZIPparse --> PopulateState
         Manual --> PopulateState[Populate State]
     end
 
-    subgraph "Single Resume Generation"
+    subgraph SingleGen[Single Resume Generation]
         Edit --> Profile[Profile Tab]
         Edit --> Experience[Experience Tab]
         Edit --> Skills[Skills Tab]
@@ -92,22 +88,22 @@ flowchart TD
         CallClaude --> FiveStep[5-Step Process]
         FiveStep --> Results[Display Results]
         Results --> ATSscore[ATS Score]
-        Results --> Keywords[Matched/Missing Keywords]
+        Results --> Keywords[Keywords Analysis]
         Results --> Tailored[Tailored Resume]
         Results --> Recruiter[Recruiter Assessment]
     end
 
-    subgraph "Batch Processing"
-        Batch --> MultiJob[Enter 3-5 Job Descriptions]
-        MultiJob --> BatchAPI[/api/batch/process]
-        BatchAPI --> ParallelGen[Generate All in Parallel]
-        ParallelGen --> Compare[Side-by-Side Comparison]
+    subgraph BatchProc[Batch Processing]
+        Batch --> MultiJob[Enter 3-5 Jobs]
+        MultiJob --> BatchAPI[Batch API]
+        BatchAPI --> ParallelGen[Generate in Parallel]
+        ParallelGen --> Compare[Compare Results]
         Compare --> Rank[Rank by Fit Score]
     end
 
-    subgraph "Resume Library"
-        Library --> SaveVersion[Save Resume Version]
-        Library --> ViewHistory[View All Versions]
+    subgraph ResLibrary[Resume Library]
+        Library --> SaveVersion[Save Version]
+        Library --> ViewHistory[View History]
         Library --> TrackApps[Track Applications]
         SaveVersion --> LibraryKV[(KV Storage)]
         ViewHistory --> LibraryKV
@@ -119,37 +115,37 @@ flowchart TD
 
 ```mermaid
 flowchart LR
-    subgraph "Step 1: Job Analysis"
+    subgraph Step1[Step 1: Job Analysis]
         JD[Job Description] --> Extract[Extract Keywords]
         Extract --> Required[Required Skills]
         Extract --> Preferred[Preferred Skills]
     end
 
-    subgraph "Step 2: Experience Mining"
+    subgraph Step2[Step 2: Experience Mining]
         Experience[User Experience] --> Score[Relevance Scoring]
-        Score --> Tech[Technical 40%]
-        Score --> Resp[Responsibility 30%]
-        Score --> Industry[Industry 20%]
-        Score --> Impact[Impact 10%]
+        Score --> Tech[Technical 40 pct]
+        Score --> Resp[Responsibility 30 pct]
+        Score --> Industry[Industry 20 pct]
+        Score --> Impact[Impact 10 pct]
     end
 
-    subgraph "Step 3: Company Context"
+    subgraph Step3[Step 3: Company Context]
         JD --> Infer[Infer Context]
         Infer --> Priorities[Strategic Priorities]
         Infer --> Culture[Cultural Values]
     end
 
-    subgraph "Step 4: Content Optimization"
+    subgraph Step4[Step 4: Content Optimization]
         Score --> Rewrite[Rewrite Content]
         Priorities --> Rewrite
         Rewrite --> Summary[Tailored Summary]
         Rewrite --> Bullets[Optimized Bullets]
     end
 
-    subgraph "Step 5: Recruiter Analysis"
+    subgraph Step5[Step 5: Recruiter Analysis]
         Summary --> Assessment[Full Assessment]
         Bullets --> Assessment
-        Assessment --> FitScore[Fit Score 0-100]
+        Assessment --> FitScore[Fit Score]
         Assessment --> Gaps[Gap Analysis]
     end
 ```
