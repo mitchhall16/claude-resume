@@ -6,6 +6,10 @@
 <title>Claude Resume - AI-Powered ATS Resume Builder</title>
 <!-- PDF Export Library -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<!-- React for Prospect Tool -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0a;color:#e0e0e0;line-height:1.6}
@@ -191,6 +195,7 @@ Sign in with Google
 <div class="tab" data-tab="batch">Batch Jobs</div>
 <div class="tab" data-tab="library">Library<span class="tab-badge" id="libraryBadge" style="display:none">0</span></div>
 <div class="tab" data-tab="questions">Q&A Helper</div>
+<div class="tab" data-tab="prospect">Prospect</div>
 </div>
 
 <!-- Dashboard Panel -->
@@ -813,6 +818,11 @@ Reduced page load time by 60% through optimization"></textarea>
 </div>
 </div>
 </div>
+</div>
+
+<!-- Prospect Panel -->
+<div class="panel" id="prospect">
+<div id="prospect-root"></div>
 </div>
 
 <!-- Experience Modal -->
@@ -4070,5 +4080,703 @@ function signInWithGoogle() {
 }
 </script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<!-- Prospect Tool React Component -->
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const STAGES = {
+  IDLE: "idle",
+  DISCOVERING: "discovering",
+  READY: "ready",
+  SEARCHING: "searching",
+  DONE: "done",
+  ERROR: "error",
+};
+
+function extractJSON(text) {
+  const match = text.match(/\[[\s\S]*?\]/);
+  if (match) {
+    try { return JSON.parse(match[0]); } catch (e) {}
+  }
+  try { return JSON.parse(text.replace(/```json|```/g, "").trim()); } catch (e) {}
+  return null;
+}
+
+function guessCompanyDomain(company) {
+  return company.trim().toLowerCase().replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, "") + ".com";
+}
+
+function generateEmailGuesses(name, companyDomain) {
+  if (!name || !companyDomain) return [];
+  const parts = name.trim().toLowerCase().split(/\s+/);
+  if (parts.length < 2) return [`${parts[0]}@${companyDomain}`];
+  const first = parts[0], last = parts[parts.length - 1];
+  return [
+    `${first}@${companyDomain}`,
+    `${first}.${last}@${companyDomain}`,
+    `${first}${last}@${companyDomain}`,
+    `${first[0]}${last}@${companyDomain}`,
+    `${first}_${last}@${companyDomain}`,
+  ];
+}
+
+async function callClaude(apiKey, messages, { system, tools, maxTokens = 4096 } = {}) {
+  const body = {
+    model: "claude-sonnet-4-20250514",
+    max_tokens: maxTokens,
+    messages,
+  };
+  if (system) body.system = system;
+  if (tools) body.tools = tools;
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true"
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.content
+    .map((b) => (b.type === "text" ? b.text : ""))
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function parseOrRetry(apiKey, rawText, retryPrompt) {
+  let parsed = extractJSON(rawText);
+  if (parsed && parsed.length > 0) return parsed;
+  try {
+    const fixText = await callClaude(apiKey,
+      [{ role: "user", content: retryPrompt + "\n\nText:\n" + rawText }],
+      { maxTokens: 2048 }
+    );
+    return extractJSON(fixText) || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function EmailGuesses({ name, company }) {
+  const [show, setShow] = useState(false);
+  const [copied, setCopied] = useState(null);
+  const domain = guessCompanyDomain(company);
+  const guesses = generateEmailGuesses(name, domain);
+  const copy = (email, idx) => {
+    navigator.clipboard.writeText(email);
+    setCopied(idx);
+    setTimeout(() => setCopied(null), 1500);
+  };
+  if (!guesses.length) return null;
+  return (
+    <div style={{ marginTop: "8px" }}>
+      <button onClick={() => setShow(!show)} style={{
+        background: "none", border: "none", color: "#6366f199", fontSize: "12px",
+        cursor: "pointer", padding: "2px 0", textDecoration: "underline",
+      }}>
+        {show ? "Hide" : "🔮 Guess"} email patterns
+      </button>
+      {show && (
+        <div style={{ marginTop: "6px", display: "flex", flexWrap: "wrap", gap: "6px" }}>
+          {guesses.map((g, i) => (
+            <button key={i} onClick={() => copy(g, i)} style={{
+              background: copied === i ? "#10b981" : "#1a1a1a",
+              color: copied === i ? "#fff" : "#888",
+              border: "1px solid #333", borderRadius: "4px",
+              padding: "4px 10px", fontSize: "12px", cursor: "pointer",
+              fontFamily: "monospace", transition: "all 0.15s",
+            }}>
+              {copied === i ? "✓ copied" : g}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PersonCard({ person, company, onGenerateMessage }) {
+  const [showMsg, setShowMsg] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [msgType, setMsgType] = useState("casual");
+  const [copied, setCopied] = useState(false);
+
+  const generate = async (type) => {
+    setMsgType(type); setLoading(true); setShowMsg(true); setCopied(false);
+    try { setMsg(await onGenerateMessage(person, company, type)); }
+    catch (e) { setMsg("Failed to generate — try again."); }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{
+      background: "#1a1a1a", border: "1px solid #333", borderRadius: "12px",
+      padding: "24px", marginBottom: "16px", transition: "border-color 0.2s",
+    }}
+    onMouseEnter={e => e.currentTarget.style.borderColor = "#6366f1"}
+    onMouseLeave={e => e.currentTarget.style.borderColor = "#333"}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px" }}>
+        <div style={{ flex: 1, minWidth: "200px" }}>
+          <h3 style={{ margin: 0, fontSize: "20px", color: "#fff" }}>{person.name}</h3>
+          <p style={{ margin: "4px 0 0", color: "#6366f1", fontSize: "14px", fontWeight: 600 }}>{person.role}</p>
+        </div>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          {person.email && (
+            <a href={`mailto:${person.email}`} style={{
+              background: "#6366f1", color: "#fff", padding: "6px 14px",
+              borderRadius: "6px", fontSize: "13px", textDecoration: "none", fontWeight: 600,
+            }}>✉ {person.email}</a>
+          )}
+          {person.twitter && (
+            <a href={`https://x.com/${person.twitter.replace("@","")}`} target="_blank" style={{
+              background: "#1a1a1a", color: "#aaa", padding: "6px 14px",
+              borderRadius: "6px", fontSize: "13px", textDecoration: "none", border: "1px solid #333",
+            }}>𝕏 {person.twitter}</a>
+          )}
+          {person.linkedin && (
+            <a href={person.linkedin} target="_blank" style={{
+              background: "#1a1a1a", color: "#aaa", padding: "6px 14px",
+              borderRadius: "6px", fontSize: "13px", textDecoration: "none", border: "1px solid #333",
+            }}>in LinkedIn</a>
+          )}
+        </div>
+      </div>
+      {!person.email && <EmailGuesses name={person.name} company={company} />}
+      {person.interests && (
+        <p style={{ color: "#888", fontSize: "14px", margin: "12px 0 0", lineHeight: 1.6 }}>
+          <span style={{ color: "#6366f1" }}>Interests:</span> {person.interests}
+        </p>
+      )}
+      {person.background && (
+        <p style={{ color: "#888", fontSize: "14px", margin: "8px 0 0", lineHeight: 1.6 }}>
+          <span style={{ color: "#6366f1" }}>Background:</span> {person.background}
+        </p>
+      )}
+      {person.source && <p style={{ color: "#555", fontSize: "12px", margin: "8px 0 0" }}>Source: {person.source}</p>}
+
+      <div style={{ marginTop: "16px", display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        {[
+          { key: "casual", label: "💬 Casual intro" },
+          { key: "job", label: "🎯 Job inquiry" },
+          { key: "interest", label: "🧠 Common interest" },
+        ].map(({ key, label }) => (
+          <button key={key} onClick={() => generate(key)} style={{
+            background: showMsg && msgType === key ? "#6366f1" : "transparent",
+            color: showMsg && msgType === key ? "#fff" : "#6366f1",
+            border: "1px solid #6366f1", padding: "8px 16px", borderRadius: "6px",
+            cursor: "pointer", fontSize: "13px", fontWeight: 600, transition: "all 0.15s",
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {showMsg && (
+        <div style={{
+          marginTop: "16px", background: "#111", border: "1px solid #333",
+          borderRadius: "8px", padding: "16px",
+        }}>
+          {loading ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ animation: "pulse 1.5s infinite" }}>✍️</span>
+              <p style={{ color: "#888", margin: 0, fontStyle: "italic" }}>Writing message...</p>
+            </div>
+          ) : (
+            <>
+              <p style={{ color: "#ccc", margin: 0, fontSize: "14px", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{msg}</p>
+              <button onClick={() => { navigator.clipboard.writeText(msg); setCopied(true); setTimeout(() => setCopied(false), 2000); }} style={{
+                marginTop: "12px", background: copied ? "#10b981" : "#333",
+                color: copied ? "#fff" : "#aaa", border: "none", padding: "6px 14px",
+                borderRadius: "6px", cursor: "pointer", fontSize: "12px",
+                fontWeight: copied ? 700 : 400, transition: "all 0.2s",
+              }}>{copied ? "✓ Copied!" : "📋 Copy to clipboard"}</button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SavedSearches({ onLoad, onDelete, activeCompany }) {
+  const [searches, setSearches] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { loadSearches(); }, []);
+
+  const loadSearches = async () => {
+    setLoading(true);
+    try {
+      const stored = localStorage.getItem('prospectSearches');
+      if (stored) {
+        const items = JSON.parse(stored);
+        items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        setSearches(items);
+      }
+    } catch (e) {}
+    setLoading(false);
+  };
+
+  const handleDelete = async (company) => {
+    try {
+      const stored = localStorage.getItem('prospectSearches');
+      if (stored) {
+        let items = JSON.parse(stored);
+        items = items.filter(s => s.company !== company);
+        localStorage.setItem('prospectSearches', JSON.stringify(items));
+        setSearches(items);
+      }
+      onDelete(company);
+    } catch (e) {}
+  };
+
+  if (loading) return <p style={{ color: "#555", fontSize: "13px" }}>Loading saved searches...</p>;
+  if (!searches.length) return null;
+
+  return (
+    <div style={{
+      background: "#1a1a1a", border: "1px solid #333", borderRadius: "12px",
+      padding: "20px 24px", marginBottom: "24px",
+    }}>
+      <h3 style={{ margin: "0 0 16px", fontSize: "16px", color: "#fff" }}>
+        📂 Saved Searches <span style={{ color: "#555", fontSize: "12px", fontWeight: 400 }}>({searches.length})</span>
+      </h3>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+        {searches.map((s) => (
+          <div key={s.company} style={{
+            display: "flex", alignItems: "center", gap: "4px",
+            background: activeCompany === s.company ? "#6366f1" : "#111",
+            border: "1px solid #333", borderRadius: "8px", overflow: "hidden",
+          }}>
+            <button onClick={() => onLoad(s)} style={{
+              background: "none", border: "none", color: activeCompany === s.company ? "#fff" : "#ccc",
+              padding: "8px 12px", cursor: "pointer", fontSize: "13px", fontWeight: 600,
+            }}>
+              {s.company} <span style={{ color: activeCompany === s.company ? "#c7d2fe" : "#666", fontSize: "11px", marginLeft: "6px" }}>{s.people.length} people</span>
+            </button>
+            <button onClick={() => handleDelete(s.company)} style={{
+              background: "none", border: "none", borderLeft: "1px solid #333",
+              color: "#555", padding: "8px 10px", cursor: "pointer", fontSize: "12px",
+            }}>✕</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ProspectTool() {
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('anthropicApiKey') || '');
+  const [company, setCompany] = useState("");
+  const [stage, setStage] = useState(STAGES.IDLE);
+  const [departments, setDepartments] = useState([]);
+  const [selectedDepts, setSelectedDepts] = useState([]);
+  const [people, setPeople] = useState([]);
+  const [jobs, setJobs] = useState([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [showJobs, setShowJobs] = useState(false);
+  const [error, setError] = useState("");
+  const [statusMsg, setStatusMsg] = useState("");
+  const [searchCount, setSearchCount] = useState(0);
+  const [savedKey, setSavedKey] = useState(0);
+  const [activeCompany, setActiveCompany] = useState("");
+  const [justSaved, setJustSaved] = useState(false);
+  const [companyInfo, setCompanyInfo] = useState("");
+
+  const saveApiKey = (key) => {
+    setApiKey(key);
+    localStorage.setItem('anthropicApiKey', key);
+  };
+
+  const toggleDept = (d) => {
+    setSelectedDepts(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]);
+  };
+
+  const saveSearch = async (companyName, peopleData) => {
+    try {
+      const stored = localStorage.getItem('prospectSearches');
+      let items = stored ? JSON.parse(stored) : [];
+      const existing = items.findIndex(s => s.company === companyName);
+      const newItem = { company: companyName, people: peopleData, departments, timestamp: Date.now() };
+      if (existing >= 0) {
+        items[existing] = newItem;
+      } else {
+        items.push(newItem);
+      }
+      localStorage.setItem('prospectSearches', JSON.stringify(items));
+      setSavedKey(prev => prev + 1);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+    } catch (e) {}
+  };
+
+  const loadSearch = (saved) => {
+    setCompany(saved.company);
+    setPeople(saved.people);
+    setDepartments(saved.departments || []);
+    setActiveCompany(saved.company);
+    setStage(STAGES.DONE);
+    setStatusMsg(`📂 Loaded ${saved.people.length} people from saved search`);
+    setJobs([]); setShowJobs(false);
+  };
+
+  const discoverCompany = async () => {
+    if (!company.trim() || !apiKey) return;
+    setStage(STAGES.DISCOVERING);
+    setDepartments([]); setSelectedDepts([]); setPeople([]); setJobs([]);
+    setError(""); setShowJobs(false); setActiveCompany("");
+    setStatusMsg(`🏢 Discovering teams at ${company}...`);
+
+    try {
+      const raw = await callClaude(apiKey,
+        [{ role: "user", content: `Research the company "${company}" and identify their actual teams and departments. Check their careers page, about page, team page, job listings, and any public info.
+
+Return a JSON array of department/team names that actually exist at this company. Be specific to the company — don't use generic categories.
+
+Also include a one-line description of the company.
+
+Format — respond with ONLY this JSON, nothing else:
+{"company_description": "one line about what they do", "departments": ["Dept 1", "Dept 2", "Dept 3", ...]}` }],
+        {
+          system: "You are a research assistant. Respond with ONLY valid JSON. No prose, no markdown, no explanation.",
+        }
+      );
+
+      let result = null;
+      try {
+        const cleaned = raw.replace(/```json|```/g, "").trim();
+        result = JSON.parse(cleaned);
+      } catch (e) {
+        const objMatch = raw.match(/\{[\s\S]*\}/);
+        if (objMatch) {
+          try { result = JSON.parse(objMatch[0]); } catch (e2) {}
+        }
+      }
+
+      if (!result) {
+        try {
+          const fixText = await callClaude(apiKey,
+            [{ role: "user", content: `Extract the company description and departments list from this text into JSON.\n\nText: ${raw}\n\nRespond with ONLY: {"company_description":"...","departments":["...","..."]}` }],
+            { maxTokens: 2048 }
+          );
+          const cleaned = fixText.replace(/```json|```/g, "").trim();
+          result = JSON.parse(cleaned);
+        } catch (e) {}
+      }
+
+      if (result && result.departments && result.departments.length > 0) {
+        setDepartments(result.departments);
+        setCompanyInfo(result.company_description || "");
+        setStage(STAGES.READY);
+        setStatusMsg(`Found ${result.departments.length} teams at ${company}`);
+      } else {
+        setError("Couldn't identify departments. Try a different company name or check the spelling.");
+        setStage(STAGES.ERROR);
+      }
+    } catch (e) {
+      setError("Discovery failed: " + e.message);
+      setStage(STAGES.ERROR);
+    }
+  };
+
+  const searchPeople = async () => {
+    if (!selectedDepts.length || !apiKey) return;
+    setStage(STAGES.SEARCHING);
+    setPeople([]);
+    setError("");
+    setStatusMsg(`🔍 Finding people in ${selectedDepts.join(", ")} at ${company}...`);
+
+    try {
+      const raw = await callClaude(apiKey,
+        [{ role: "user", content: `Find 2-4 real people who work at ${company} in these specific teams/departments: ${selectedDepts.join(", ")}.
+
+STRICT RULES:
+- ONLY include people who work in the selected departments
+- Do NOT include founders, CEOs, or C-suite unless their role directly matches a selected department
+- Find mid-level to senior people in those specific teams
+
+For each person find:
+- Full name and role/title
+- Email (check public sources, company email patterns)
+- Twitter/X handle, LinkedIn URL if available
+- 1 sentence on background, 1 sentence on interests
+- Source
+
+Respond with ONLY a JSON array:
+[{"name":"...","role":"...","email":"...or null","twitter":"...or null","linkedin":"...or null","background":"...","interests":"...","source":"..."}]` }],
+        {
+          system: "You are a research assistant. Respond with ONLY a valid JSON array. No prose or explanation.",
+        }
+      );
+
+      const parsed = await parseOrRetry(apiKey, raw,
+        `Extract people from this text into a JSON array. Apply any email patterns found.\n\nRespond with ONLY a JSON array:\n[{"name":"...","role":"...","email":"...or null","twitter":"...or null","linkedin":"...or null","background":"...","interests":"...","source":"..."}]`
+      );
+
+      if (parsed.length > 0) {
+        setPeople(parsed);
+        setStage(STAGES.DONE);
+        setActiveCompany(company);
+        setStatusMsg(`✅ Found ${parsed.length} people at ${company}`);
+        setSearchCount(prev => prev + 1);
+      } else {
+        setError("No people found for those departments. Try selecting different teams.");
+        setStage(STAGES.READY);
+      }
+    } catch (e) {
+      setError("Search failed: " + e.message);
+      setStage(STAGES.READY);
+    }
+  };
+
+  const searchJobs = async () => {
+    if (!apiKey) return;
+    setJobsLoading(true); setShowJobs(true);
+    try {
+      const raw = await callClaude(apiKey,
+        [{ role: "user", content: `Find current open job listings at ${company}. Check their careers page, Ashby, Lever, Greenhouse, LinkedIn jobs, and website.\n\nReturn ONLY a JSON array:\n[{"title":"...","department":"...","location":"...","url":"...or null","type":"full-time/part-time/contract/unknown"}]\n\nIf none found: []` }],
+        {
+          system: "Respond with ONLY a valid JSON array.",
+        }
+      );
+      const parsed = await parseOrRetry(apiKey, raw,
+        `Extract job listings into JSON array:\n[{"title":"...","department":"...","location":"...","url":"...or null","type":"..."}]\nIf none: []`
+      );
+      setJobs(parsed || []);
+    } catch (e) {}
+    setJobsLoading(false);
+  };
+
+  const generateMessage = async (person, companyName, type) => {
+    const jobContext = jobs.length > 0
+      ? `\n\nOpen roles at ${companyName} that might be relevant: ${jobs.slice(0, 5).map(j => j.title).join(", ")}. You can reference a specific open role if it feels natural.`
+      : "";
+
+    const prompts = {
+      casual: `Write a very short, casual cold email (4-6 sentences) to ${person.name} (${person.role} at ${companyName}). Interests: ${person.interests || "unknown"}. Background: ${person.background || "unknown"}. Be natural, not a bot. Reference something specific about them. End with an open question.${jobContext}`,
+      job: `Write a very short cold email (5-7 sentences) to ${person.name} (${person.role} at ${companyName}). You're interested in opportunities there but keep it chill. Mention why ${companyName} interests you. Their background: ${person.background || "unknown"}. Ask about roles or hiring.${jobContext}`,
+      interest: `Write a very short cold email (4-6 sentences) to ${person.name} at ${companyName}. Their interests: ${person.interests || "unknown"}. Background: ${person.background || ""}. Find a natural connection point and start a genuine conversation.${jobContext}`,
+    };
+
+    const raw = await callClaude(apiKey,
+      [{ role: "user", content: prompts[type] + "\n\nSign off with [Your name]. Write ONLY the email body." }],
+      { maxTokens: 2048 }
+    );
+    return raw.trim();
+  };
+
+  const isReady = stage === STAGES.READY || stage === STAGES.DONE;
+
+  return (
+    <div style={{ color: "#e0e0e0" }}>
+      <h2 style={{ marginBottom: "20px" }}>Prospect Finder</h2>
+      <p style={{ color: "#888", marginBottom: "20px" }}>Search company → pick their teams → find people → send outreach.</p>
+
+      {/* API Key Input */}
+      <div style={{ background: "#1a1a1a", borderRadius: "12px", padding: "20px", border: "1px solid #333", marginBottom: "24px" }}>
+        <label style={{ display: "block", marginBottom: "8px", color: "#888", fontSize: "0.9em" }}>Anthropic API Key</label>
+        <div style={{ display: "flex", gap: "10px" }}>
+          <input
+            type="password"
+            placeholder="sk-ant-api..."
+            value={apiKey}
+            onChange={(e) => saveApiKey(e.target.value)}
+            style={{
+              flex: 1, background: "#111", border: "1px solid #333",
+              borderRadius: "8px", padding: "12px", color: "#fff", fontSize: "14px",
+            }}
+          />
+        </div>
+        {!apiKey && <p style={{ color: "#f59e0b", fontSize: "12px", marginTop: "8px" }}>⚠️ API key required for prospect searches</p>}
+      </div>
+
+      <SavedSearches key={savedKey} onLoad={loadSearch} onDelete={(c) => { if (activeCompany === c) { setPeople([]); setStage(STAGES.IDLE); } }} activeCompany={activeCompany} />
+
+      {/* Company Search */}
+      <div style={{ background: "#1a1a1a", borderRadius: "12px", padding: "24px", border: "1px solid #333" }}>
+        <div style={{ display: "flex", gap: "12px", marginBottom: isReady ? "16px" : "0" }}>
+          <input
+            type="text"
+            placeholder="Company name (e.g. Meter, Ramp, Figma...)"
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && discoverCompany()}
+            style={{
+              flex: 1, background: "#111", border: "1px solid #333",
+              borderRadius: "8px", padding: "14px 16px", color: "#fff", fontSize: "15px",
+            }}
+          />
+          <button
+            onClick={discoverCompany}
+            disabled={stage === STAGES.DISCOVERING || !company.trim() || !apiKey}
+            style={{
+              background: stage === STAGES.DISCOVERING || !apiKey ? "#333" : "#6366f1",
+              color: "#fff", border: "none", borderRadius: "8px",
+              padding: "14px 28px", fontSize: "15px", fontWeight: 700,
+              cursor: stage === STAGES.DISCOVERING || !apiKey ? "not-allowed" : "pointer", whiteSpace: "nowrap",
+              opacity: !apiKey ? 0.5 : 1
+            }}
+          >
+            {stage === STAGES.DISCOVERING ? "Discovering..." : "Discover Teams"}
+          </button>
+        </div>
+
+        {companyInfo && isReady && (
+          <p style={{ color: "#666", fontSize: "13px", margin: "0 0 16px", fontStyle: "italic" }}>
+            {companyInfo}
+          </p>
+        )}
+
+        {departments.length > 0 && isReady && (
+          <div>
+            <p style={{ color: "#666", fontSize: "12px", margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "1px" }}>
+              Teams at {company} <span style={{ color: "#444" }}>(select which to search)</span>
+            </p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+              {departments.map((dept) => {
+                const active = selectedDepts.includes(dept);
+                return (
+                  <button key={dept} onClick={() => toggleDept(dept)} style={{
+                    background: active ? "#6366f1" : "#111",
+                    color: active ? "#fff" : "#888",
+                    border: active ? "1px solid #6366f1" : "1px solid #333",
+                    borderRadius: "20px", padding: "7px 14px", fontSize: "13px",
+                    cursor: "pointer", fontWeight: active ? 600 : 400, transition: "all 0.15s",
+                  }}>
+                    {dept}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: "flex", gap: "12px", alignItems: "center", marginTop: "14px" }}>
+              {selectedDepts.length > 0 && (
+                <>
+                  <button onClick={searchPeople} disabled={stage === STAGES.SEARCHING} style={{
+                    background: stage === STAGES.SEARCHING ? "#333" : "#6366f1",
+                    color: "#fff", border: "none", borderRadius: "8px",
+                    padding: "10px 24px", fontSize: "14px", fontWeight: 700,
+                    cursor: stage === STAGES.SEARCHING ? "wait" : "pointer",
+                  }}>
+                    {stage === STAGES.SEARCHING ? "Searching..." : `Find People in ${selectedDepts.length} team${selectedDepts.length > 1 ? "s" : ""}`}
+                  </button>
+                  <button onClick={() => setSelectedDepts([])} style={{
+                    background: "none", border: "none", color: "#555",
+                    fontSize: "12px", cursor: "pointer", textDecoration: "underline",
+                  }}>Clear</button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {statusMsg && (
+        <p style={{
+          color: stage === STAGES.DONE ? "#10b981" : "#888",
+          fontSize: "14px", margin: "16px 0",
+          fontStyle: [STAGES.DISCOVERING, STAGES.SEARCHING].includes(stage) ? "italic" : "normal",
+        }}>
+          {[STAGES.DISCOVERING, STAGES.SEARCHING].includes(stage) && (
+            <span style={{ display: "inline-block", animation: "pulse 1.5s infinite" }}>⏳ </span>
+          )}
+          {statusMsg}
+        </p>
+      )}
+
+      {error && (
+        <div style={{ background: "#2a1020", border: "1px solid #ef4444", borderRadius: "8px", padding: "16px", margin: "16px 0" }}>
+          <p style={{ color: "#ef4444", margin: 0, fontSize: "14px", whiteSpace: "pre-wrap" }}>{error}</p>
+        </div>
+      )}
+
+      {stage === STAGES.DONE && people.length > 0 && (
+        <div style={{ margin: "16px 0", display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+          <button onClick={() => saveSearch(company, people)} style={{
+            background: justSaved ? "#10b981" : "#1a1a1a",
+            color: justSaved ? "#fff" : "#6366f1",
+            border: justSaved ? "1px solid #10b981" : "1px solid #6366f1",
+            borderRadius: "8px", padding: "10px 20px", fontSize: "14px", fontWeight: 700, cursor: "pointer",
+          }}>{justSaved ? "✓ Saved!" : "💾 Save this search"}</button>
+          <button onClick={searchJobs} disabled={jobsLoading} style={{
+            background: jobsLoading ? "#333" : "#1a1a1a",
+            color: "#60a5fa", border: "1px solid #60a5fa",
+            borderRadius: "8px", padding: "10px 20px", fontSize: "14px", fontWeight: 700,
+            cursor: jobsLoading ? "wait" : "pointer",
+          }}>{jobsLoading ? "Searching jobs..." : "📋 Find open roles"}</button>
+        </div>
+      )}
+
+      {showJobs && (
+        <div style={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: "12px", padding: "24px", margin: "16px 0" }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: "18px", color: "#fff" }}>
+            📋 Open Roles at {company}
+            {jobs.length > 0 && <span style={{ color: "#60a5fa", fontSize: "14px", fontWeight: 600, marginLeft: "8px" }}>({jobs.length})</span>}
+          </h3>
+          {jobsLoading && <p style={{ color: "#888", fontStyle: "italic", margin: 0 }}><span style={{ animation: "pulse 1.5s infinite" }}>⏳</span> Searching careers pages...</p>}
+          {!jobsLoading && jobs.length === 0 && <p style={{ color: "#666", margin: 0, fontSize: "14px" }}>No open roles found — try their careers page directly.</p>}
+          {jobs.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {jobs.map((job, i) => (
+                <div key={i} style={{
+                  background: "#111", border: "1px solid #333", borderRadius: "8px",
+                  padding: "12px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px",
+                }}>
+                  <div>
+                    <p style={{ margin: 0, color: "#fff", fontSize: "14px", fontWeight: 600 }}>{job.title}</p>
+                    <p style={{ margin: "2px 0 0", color: "#666", fontSize: "12px" }}>
+                      {[job.department, job.location, job.type].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
+                  {job.url && (
+                    <a href={job.url} target="_blank" style={{
+                      color: "#60a5fa", fontSize: "12px", textDecoration: "none",
+                      border: "1px solid #60a5fa", borderRadius: "4px", padding: "4px 10px",
+                    }}>View →</a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          <p style={{ color: "#444", fontSize: "11px", margin: "12px 0 0" }}>💡 Open roles are included when generating outreach messages</p>
+        </div>
+      )}
+
+      <div style={{ margin: "16px 0 48px" }}>
+        {people.map((p, i) => (
+          <PersonCard key={i} person={p} company={company} onGenerateMessage={generateMessage} />
+        ))}
+      </div>
+
+      {stage === STAGES.DONE && people.length > 0 && (
+        <div style={{ background: "#1a1a1a", border: "1px solid #333", borderRadius: "12px", padding: "20px 24px", marginBottom: "48px", textAlign: "center" }}>
+          <p style={{ color: "#888", margin: 0, fontSize: "14px" }}>🎯 Pick 1-3 people, generate a message, tweak it, and send.</p>
+          <p style={{ color: "#555", margin: "8px 0 0", fontSize: "12px" }}>No email? Click "🔮 Guess email patterns" on any card.</p>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+      `}</style>
+    </div>
+  );
+}
+
+// Mount React component when prospect tab is shown
+const prospectRoot = document.getElementById('prospect-root');
+let prospectMounted = false;
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    if (tab.dataset.tab === 'prospect' && !prospectMounted) {
+      ReactDOM.createRoot(prospectRoot).render(<ProspectTool />);
+      prospectMounted = true;
+    }
+  });
+});
+</script>
 </body>
 </html>
