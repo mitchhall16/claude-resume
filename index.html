@@ -678,6 +678,7 @@ Reduced page load time by 60% through optimization"></textarea>
 <button class="secondary small" onclick="previewPDF()" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">Preview PDF</button>
 <button class="secondary small" onclick="copyResume()">Copy</button>
 <button class="secondary small" onclick="downloadPDF()" style="background:linear-gradient(135deg,#ef4444,#dc2626)">Download PDF</button>
+<label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#888;cursor:pointer"><input type="checkbox" id="pdfKeepTogether" checked style="cursor:pointer"> Keep jobs on one page</label>
 <button class="secondary small" onclick="exportToGoogleDocs()" id="googleDocsBtn" style="background:linear-gradient(135deg,#4285F4,#1a73e8)">Export to Google Docs</button>
 <button class="secondary small" onclick="checkAI('resume')" style="background:linear-gradient(135deg,#f59e0b,#d97706)">🤖 AI Check</button>
 </div>
@@ -5420,7 +5421,7 @@ function downloadPDF() {
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, letterRendering: true },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] }
+      pagebreak: { mode: document.getElementById('pdfKeepTogether')?.checked ? ['avoid-all', 'css', 'legacy'] : ['css', 'legacy'] }
     };
 
     html2pdf().set(opt).from(element).save().then(() => {
