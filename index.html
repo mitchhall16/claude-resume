@@ -5398,47 +5398,21 @@ function downloadPDF() {
   }
 
   try {
-    console.log('Populating PDF template...');
-    // Populate PDF template from current state and generated resume
     populatePDFTemplate();
-    console.log('Template populated, generating PDF...');
 
-    // Get the template elements
-    const template = document.getElementById('pdfTemplate');
     const element = document.getElementById('pdfContent');
-    if (!element || !template) {
+    if (!element) {
       alert('PDF template not found. Please refresh the page.');
       return;
     }
 
-    // Clone content at (0,0) on top of page for html2canvas
-    // html2canvas renders stacking context, so element must be:
-    // - at left:0 (not -9999px, or content crops from left)
-    // - fully opaque (not opacity:0, or renders transparent)
-    // - on top (not z-index:-9999, or page elements cover it)
-    // User sees a brief white flash but PDF renders correctly
-    const clone = element.cloneNode(true);
-    clone.style.display = 'block';
-    clone.style.width = '720px';
-    clone.style.position = 'fixed';
-    clone.style.left = '0';
-    clone.style.top = '0';
-    clone.style.zIndex = '99999';
-    clone.style.pointerEvents = 'none';
-    clone.style.background = '#fff';
-    clone.style.margin = '0';
-    clone.style.padding = '0';
-    document.body.appendChild(clone);
+    // Get the populated HTML as a string — avoids all positioning/visibility
+    // issues with html2canvas. html2pdf creates its own container internally.
+    const htmlString = '<div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.4;width:720px;margin:0;padding:0;background:#fff">' + element.innerHTML + '</div>';
 
-    // Clean filename
     const safeName = (state.profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
     const safeCompany = (state.lastGenerated.company || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
 
-    const cleanup = () => {
-      if (clone.parentNode) document.body.removeChild(clone);
-    };
-
-    // Configure options for html2pdf
     const opt = {
       margin: [0.4, 0.5, 0.4, 0.5],
       filename: `${safeName}_${safeCompany}.pdf`,
@@ -5454,13 +5428,9 @@ function downloadPDF() {
       pagebreak: { mode: ['css', 'legacy'] }
     };
 
-    // Generate PDF from the clone
-    html2pdf().set(opt).from(clone).save().then(() => {
-      cleanup();
-    }).catch(err => {
+    html2pdf().set(opt).from(htmlString, 'string').save().catch(err => {
       console.error('PDF generation error:', err);
       alert('Error generating PDF: ' + err.message);
-      cleanup();
     });
   } catch (err) {
     console.error('PDF setup error:', err);
