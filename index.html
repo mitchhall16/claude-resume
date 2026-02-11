@@ -5518,7 +5518,7 @@ function populatePDFTemplate() {
       return `
         <div style="margin-bottom:10px;page-break-inside:avoid">
           <div style="font-size:11px"><strong>${proj.name}</strong></div>
-          ${links.length > 0 ? `<div style="font-size:9px;margin:1px 0">${links.join(' | ')}</div>` : ''}
+          ${links.length > 0 ? `<div style="font-size:10px;margin:1px 0">${links.join(' | ')}</div>` : ''}
           <div style="font-size:10px;color:#4b5563;margin:2px 0">${proj.shortDesc || ''}</div>
           ${features.length > 0 ? `
             <ul style="margin:3px 0 0 0;padding-left:15px;font-size:10px;color:#4b5563">
