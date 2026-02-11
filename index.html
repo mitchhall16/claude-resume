@@ -5416,13 +5416,20 @@ function downloadPDF() {
     const safeName = (state.profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
     const safeCompany = (state.lastGenerated.company || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
 
+    // Dynamically add page-break-inside:avoid to job entries if "keep on same page" is checked
+    const keepTogether = document.getElementById('pdfKeepTogether')?.checked || document.getElementById('pdfKeepTogetherLib')?.checked;
+    const jobDivs = element.querySelectorAll('#pdfExperience > div');
+    jobDivs.forEach(div => {
+      div.style.pageBreakInside = keepTogether ? 'avoid' : 'auto';
+    });
+
     const opt = {
-      margin: [0.3, 0.5, 0.3, 0.5],
+      margin: [0.2, 0.5, 0.2, 0.5],
       filename: `${safeName}_${safeCompany}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, letterRendering: true },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-      pagebreak: { mode: (document.getElementById('pdfKeepTogether')?.checked || document.getElementById('pdfKeepTogetherLib')?.checked) ? ['avoid-all', 'css', 'legacy'] : ['css', 'legacy'] }
+      pagebreak: { mode: ['css', 'legacy'] }
     };
 
     html2pdf().set(opt).from(element).save().then(() => {
@@ -5517,8 +5524,8 @@ function populatePDFTemplate() {
         links.push(`<a href="${proj.liveUrl}" target="_blank" style="color:#10b981;text-decoration:none">${shortLive}</a>`);
       }
       return `
-        <div style="margin-bottom:10px;page-break-inside:avoid">
-          <div style="font-size:11px"><strong>${proj.name}</strong></div>
+        <div style="margin-bottom:10px">
+          <div style="font-size:11px;page-break-after:avoid"><strong>${proj.name}</strong></div>
           ${links.length > 0 ? `<div style="font-size:10px;margin:1px 0">${links.join(' | ')}</div>` : ''}
           <div style="font-size:10px;color:#4b5563;margin:2px 0">${proj.shortDesc || ''}</div>
           ${features.length > 0 ? `
