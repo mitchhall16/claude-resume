@@ -3505,6 +3505,7 @@ async function viewResumeDetail(resumeId) {
             <button onclick="previewPDFFromLibrary()" class="secondary small" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">Preview</button>
             <button onclick="copyResumeFromDetail()" class="secondary small">Copy</button>
             <button onclick="downloadPDFFromDetail()" class="secondary small" style="background:linear-gradient(135deg,#ef4444,#dc2626)">Download PDF</button>
+            <label style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#888;cursor:pointer"><input type="checkbox" id="pdfKeepTogetherLib" checked style="cursor:pointer"> Keep jobs on one page</label>
             <button onclick="checkAIBoth()" class="secondary small" style="background:linear-gradient(135deg,#f59e0b,#d97706)">🤖 AI Check</button>
           </div>
         </div>
@@ -5421,7 +5422,7 @@ function downloadPDF() {
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, letterRendering: true },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-      pagebreak: { mode: document.getElementById('pdfKeepTogether')?.checked ? ['avoid-all', 'css', 'legacy'] : ['css', 'legacy'] }
+      pagebreak: { mode: (document.getElementById('pdfKeepTogether')?.checked || document.getElementById('pdfKeepTogetherLib')?.checked) ? ['avoid-all', 'css', 'legacy'] : ['css', 'legacy'] }
     };
 
     html2pdf().set(opt).from(element).save().then(() => {
