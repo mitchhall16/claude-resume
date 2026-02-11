@@ -4852,10 +4852,10 @@ console.log('Claude Resume initialized v4');
 
 <!-- Hidden PDF Template -->
 <div id="pdfTemplate" style="display:none">
-<div id="pdfContent" style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.5;max-width:8.5in;margin:0 auto;padding:0.5in;background:#fff">
+<div id="pdfContent" style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.5;max-width:8.5in;margin:0 auto;padding:0;background:#fff">
 <!-- Header -->
-<div id="pdfHeader" style="text-align:center;border-bottom:2px solid #2563eb;padding-bottom:15px;margin-bottom:20px">
-<h1 id="pdfName" style="font-size:24px;font-weight:700;color:#1a1a1a;margin:0 0 8px 0"></h1>
+<div id="pdfHeader" style="text-align:center;padding-bottom:10px;margin-bottom:15px">
+<h1 id="pdfName" style="font-size:24px;font-weight:700;color:#1a1a1a;margin:0 0 6px 0"></h1>
 <div id="pdfContact" style="font-size:11px;color:#4b5563"></div>
 </div>
 <!-- Summary -->
@@ -5416,7 +5416,7 @@ function downloadPDF() {
     const safeCompany = (state.lastGenerated.company || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
 
     const opt = {
-      margin: 0,
+      margin: [0.3, 0.5, 0.3, 0.5],
       filename: `${safeName}_${safeCompany}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, letterRendering: true },
