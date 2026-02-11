@@ -5411,24 +5411,29 @@ function downloadPDF() {
       return;
     }
 
-    // Show template offscreen for html2canvas to render
-    // Cannot use opacity:0 — html2canvas respects it and renders transparent
-    template.style.display = 'block';
-    template.style.position = 'absolute';
-    template.style.left = '-9999px';
-    template.style.top = '0';
-    element.style.width = '720px';
+    // Clone the content and place at (0,0) behind everything
+    // html2canvas captures at the element's actual position, so:
+    // - can't use left:-9999px (content gets cropped on left)
+    // - can't use opacity:0 (renders transparent)
+    const clone = element.cloneNode(true);
+    clone.style.display = 'block';
+    clone.style.width = '720px';
+    clone.style.position = 'fixed';
+    clone.style.left = '0';
+    clone.style.top = '0';
+    clone.style.zIndex = '-9999';
+    clone.style.pointerEvents = 'none';
+    clone.style.background = '#fff';
+    clone.style.margin = '0';
+    clone.style.padding = '0';
+    document.body.appendChild(clone);
 
     // Clean filename
     const safeName = (state.profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
     const safeCompany = (state.lastGenerated.company || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
 
-    const hideTemplate = () => {
-      template.style.display = 'none';
-      template.style.position = '';
-      template.style.left = '';
-      template.style.top = '';
-      element.style.width = '';
+    const cleanup = () => {
+      if (clone.parentNode) document.body.removeChild(clone);
     };
 
     // Configure options for html2pdf
@@ -5441,21 +5446,19 @@ function downloadPDF() {
         useCORS: true,
         scrollX: 0,
         scrollY: 0,
-        windowWidth: 720,
-        x: 0,
-        y: 0
+        windowWidth: 720
       },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'] }
     };
 
-    // Generate PDF directly from the element
-    html2pdf().set(opt).from(element).save().then(() => {
-      hideTemplate();
+    // Generate PDF from the clone
+    html2pdf().set(opt).from(clone).save().then(() => {
+      cleanup();
     }).catch(err => {
       console.error('PDF generation error:', err);
       alert('Error generating PDF: ' + err.message);
-      hideTemplate();
+      cleanup();
     });
   } catch (err) {
     console.error('PDF setup error:', err);
