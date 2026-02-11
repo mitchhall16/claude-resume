@@ -4851,40 +4851,40 @@ console.log('Claude Resume initialized v4');
 
 <!-- Hidden PDF Template -->
 <div id="pdfTemplate" style="display:none">
-<div id="pdfContent" style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.4;max-width:8.5in;margin:0;padding:0;background:#fff;overflow:hidden;box-sizing:border-box">
+<div id="pdfContent" style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.5;max-width:8.5in;margin:0 auto;padding:0.5in;background:#fff">
 <!-- Header -->
-<div id="pdfHeader" style="text-align:center;border-bottom:2px solid #2563eb;padding-bottom:6px;margin-bottom:8px">
-<h1 id="pdfName" style="font-size:20px;font-weight:700;color:#1a1a1a;margin:0 0 4px 0;background:none;-webkit-background-clip:unset;-webkit-text-fill-color:#1a1a1a"></h1>
-<div id="pdfContact" style="font-size:10px;color:#4b5563"></div>
+<div id="pdfHeader" style="text-align:center;border-bottom:2px solid #2563eb;padding-bottom:15px;margin-bottom:20px">
+<h1 id="pdfName" style="font-size:24px;font-weight:700;color:#1a1a1a;margin:0 0 8px 0"></h1>
+<div id="pdfContact" style="font-size:11px;color:#4b5563"></div>
 </div>
 <!-- Summary -->
-<div id="pdfSummarySection" style="margin-bottom:12px">
-<h2 style="font-size:13px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:4px;margin:0 0 8px 0;page-break-after:avoid">Professional Summary</h2>
-<p id="pdfSummary" style="font-size:10px;margin:0;text-align:justify"></p>
+<div id="pdfSummarySection" style="margin-bottom:20px">
+<h2 style="font-size:14px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:5px;margin:0 0 10px 0;page-break-after:avoid">Professional Summary</h2>
+<p id="pdfSummary" style="font-size:11px;margin:0;text-align:justify"></p>
 </div>
 <!-- Experience -->
-<div id="pdfExperienceSection" style="margin-bottom:12px">
-<h2 style="font-size:13px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:4px;margin:0 0 8px 0;page-break-after:avoid">Professional Experience</h2>
+<div id="pdfExperienceSection" style="margin-bottom:20px">
+<h2 style="font-size:14px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:5px;margin:0 0 10px 0;page-break-after:avoid">Professional Experience</h2>
 <div id="pdfExperience"></div>
 </div>
 <!-- Education -->
-<div id="pdfEducationSection" style="margin-bottom:12px">
-<h2 style="font-size:13px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:4px;margin:0 0 8px 0;page-break-after:avoid">Education</h2>
+<div id="pdfEducationSection" style="margin-bottom:20px">
+<h2 style="font-size:14px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:5px;margin:0 0 10px 0;page-break-after:avoid">Education</h2>
 <div id="pdfEducation"></div>
 </div>
 <!-- Skills -->
-<div id="pdfSkillsSection" style="margin-bottom:12px">
-<h2 style="font-size:13px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:4px;margin:0 0 8px 0;page-break-after:avoid">Skills</h2>
-<p id="pdfSkills" style="font-size:10px;margin:0"></p>
+<div id="pdfSkillsSection" style="margin-bottom:20px">
+<h2 style="font-size:14px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:5px;margin:0 0 10px 0;page-break-after:avoid">Skills</h2>
+<p id="pdfSkills" style="font-size:11px;margin:0"></p>
 </div>
 <!-- Projects -->
-<div id="pdfProjectsSection" style="margin-bottom:12px;display:none">
-<h2 style="font-size:13px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:4px;margin:0 0 8px 0;page-break-after:avoid">Projects</h2>
+<div id="pdfProjectsSection" style="margin-bottom:20px;display:none">
+<h2 style="font-size:14px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:5px;margin:0 0 10px 0;page-break-after:avoid">Projects</h2>
 <div id="pdfProjects"></div>
 </div>
 <!-- Certifications -->
-<div id="pdfCertsSection" style="margin-bottom:12px;display:none">
-<h2 style="font-size:13px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:4px;margin:0 0 8px 0;page-break-after:avoid">Certifications</h2>
+<div id="pdfCertsSection" style="margin-bottom:20px;display:none">
+<h2 style="font-size:14px;font-weight:700;color:#2563eb;text-transform:uppercase;border-bottom:1px solid #e5e7eb;padding-bottom:5px;margin:0 0 10px 0;page-break-after:avoid">Certifications</h2>
 <div id="pdfCerts"></div>
 </div>
 </div>
@@ -5407,46 +5407,29 @@ function downloadPDF() {
       return;
     }
 
-    // Make template fully visible on screen so html2canvas can render it.
-    // This causes a brief white flash but is the only reliable approach —
-    // html2canvas cannot render elements that are hidden, offscreen, or
-    // behind other elements.
-    template.style.cssText = 'display:block;position:fixed;left:0;top:0;z-index:99999;background:#fff;width:720px;overflow:visible;padding:0;margin:0';
-    element.style.width = '720px';
+    // Show template (original working approach — no positioning tricks)
+    template.style.display = 'block';
+    element.style.display = 'block';
 
     const safeName = (state.profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
     const safeCompany = (state.lastGenerated.company || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
 
-    const hideTemplate = () => {
-      template.style.cssText = 'display:none';
-      element.style.width = '';
-    };
-
     const opt = {
-      margin: [0.4, 0.5, 0.4, 0.5],
+      margin: 0,
       filename: `${safeName}_${safeCompany}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: {
-        scale: 2,
-        useCORS: true,
-        scrollX: 0,
-        scrollY: 0,
-        windowWidth: 720
-      },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] }
+      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
-    // Wait for browser to lay out the template before rendering
-    setTimeout(() => {
-      html2pdf().set(opt).from(element).save().then(() => {
-        hideTemplate();
-      }).catch(err => {
-        console.error('PDF generation error:', err);
-        alert('Error generating PDF: ' + err.message);
-        hideTemplate();
-      });
-    }, 100);
+    html2pdf().set(opt).from(element).save().then(() => {
+      template.style.display = 'none';
+    }).catch(err => {
+      console.error('PDF generation error:', err);
+      alert('Error generating PDF: ' + err.message);
+      template.style.display = 'none';
+    });
   } catch (err) {
     console.error('PDF setup error:', err);
     alert('Error setting up PDF: ' + err.message);
