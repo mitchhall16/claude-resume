@@ -5480,7 +5480,7 @@ function populatePDFTemplate() {
     <div style="margin-bottom:10px;page-break-inside:avoid">
       <div style="font-size:11px"><strong>${edu.degree}</strong> <span style="color:#6b7280;white-space:nowrap">| ${edu.start || ''} - ${edu.end || ''}</span></div>
       <div style="font-size:10px;color:#4b5563">${edu.school}${edu.location ? ', ' + edu.location : ''}${edu.gpa ? ' | GPA: ' + edu.gpa : ''}</div>
-      ${edu.extras ? `<div style="font-size:10px;color:#4b5563;margin-top:4px"><strong style="color:#374151">Relevant Courses:</strong> ${edu.extras}</div>` : ''}
+      ${edu.extras ? `<div style="font-size:10px;color:#4b5563;margin-top:4px"><strong style="color:#374151">Relevant Courses:</strong> ${edu.extras.replace(/\b([A-Z]{2,5}\s?\d{3,5}[A-Z]?)\b/g, '<strong style="color:#1a1a1a">$1</strong>')}</div>` : ''}
     </div>
   `).join('');
   document.getElementById('pdfEducation').innerHTML = eduHtml;
