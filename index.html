@@ -5411,18 +5411,25 @@ function downloadPDF() {
       return;
     }
 
-    // Temporarily show the template for rendering
+    // Show template offscreen for html2canvas to render
+    // Cannot use opacity:0 — html2canvas respects it and renders transparent
     template.style.display = 'block';
-    template.style.position = 'fixed';
-    template.style.left = '0';
+    template.style.position = 'absolute';
+    template.style.left = '-9999px';
     template.style.top = '0';
-    template.style.zIndex = '-9999';
-    template.style.opacity = '0';
     element.style.width = '720px';
 
     // Clean filename
     const safeName = (state.profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
     const safeCompany = (state.lastGenerated.company || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
+
+    const hideTemplate = () => {
+      template.style.display = 'none';
+      template.style.position = '';
+      template.style.left = '';
+      template.style.top = '';
+      element.style.width = '';
+    };
 
     // Configure options for html2pdf
     const opt = {
@@ -5434,7 +5441,9 @@ function downloadPDF() {
         useCORS: true,
         scrollX: 0,
         scrollY: 0,
-        windowWidth: 720
+        windowWidth: 720,
+        x: 0,
+        y: 0
       },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'] }
@@ -5442,23 +5451,11 @@ function downloadPDF() {
 
     // Generate PDF directly from the element
     html2pdf().set(opt).from(element).save().then(() => {
-      template.style.display = 'none';
-      template.style.position = '';
-      template.style.left = '';
-      template.style.top = '';
-      template.style.zIndex = '';
-      template.style.opacity = '';
-      element.style.width = '';
+      hideTemplate();
     }).catch(err => {
       console.error('PDF generation error:', err);
       alert('Error generating PDF: ' + err.message);
-      template.style.display = 'none';
-      template.style.position = '';
-      template.style.left = '';
-      template.style.top = '';
-      template.style.zIndex = '';
-      template.style.opacity = '';
-      element.style.width = '';
+      hideTemplate();
     });
   } catch (err) {
     console.error('PDF setup error:', err);
