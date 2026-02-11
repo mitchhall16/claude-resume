@@ -5411,17 +5411,19 @@ function downloadPDF() {
       return;
     }
 
-    // Clone the content and place at (0,0) behind everything
-    // html2canvas captures at the element's actual position, so:
-    // - can't use left:-9999px (content gets cropped on left)
-    // - can't use opacity:0 (renders transparent)
+    // Clone content at (0,0) on top of page for html2canvas
+    // html2canvas renders stacking context, so element must be:
+    // - at left:0 (not -9999px, or content crops from left)
+    // - fully opaque (not opacity:0, or renders transparent)
+    // - on top (not z-index:-9999, or page elements cover it)
+    // User sees a brief white flash but PDF renders correctly
     const clone = element.cloneNode(true);
     clone.style.display = 'block';
     clone.style.width = '720px';
     clone.style.position = 'fixed';
     clone.style.left = '0';
     clone.style.top = '0';
-    clone.style.zIndex = '-9999';
+    clone.style.zIndex = '99999';
     clone.style.pointerEvents = 'none';
     clone.style.background = '#fff';
     clone.style.margin = '0';
