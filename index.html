@@ -5411,9 +5411,8 @@ function downloadPDF() {
     // This causes a brief white flash but is the only reliable approach —
     // html2canvas cannot render elements that are hidden, offscreen, or
     // behind other elements.
-    template.style.cssText = 'display:block;position:fixed;left:0;top:0;z-index:99999;background:#fff;width:100vw;height:100vh;overflow:auto;padding:0;margin:0';
+    template.style.cssText = 'display:block;position:fixed;left:0;top:0;z-index:99999;background:#fff;width:720px;overflow:visible;padding:0;margin:0';
     element.style.width = '720px';
-    element.style.margin = '0 auto';
 
     const safeName = (state.profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
     const safeCompany = (state.lastGenerated.company || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
@@ -5421,7 +5420,6 @@ function downloadPDF() {
     const hideTemplate = () => {
       template.style.cssText = 'display:none';
       element.style.width = '';
-      element.style.margin = '';
     };
 
     const opt = {
