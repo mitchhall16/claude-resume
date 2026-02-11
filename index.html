@@ -5510,7 +5510,7 @@ function populatePDFTemplate() {
       const displayUrl = shortUrl.length > 30 ? shortUrl.substring(0, 30) + '...' : shortUrl;
       return `
         <div style="margin-bottom:10px;page-break-inside:avoid;overflow:hidden">
-          <div style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong>${proj.name}</strong>${proj.url ? ` — <span style="color:#2563eb;font-size:9px">${displayUrl}</span>` : ''}</div>
+          <div style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong>${proj.name}</strong>${proj.url ? ` — <a href="${proj.url}" target="_blank" style="color:#2563eb;font-size:9px;text-decoration:none">${displayUrl}</a>` : ''}</div>
           <div style="font-size:10px;color:#4b5563;margin:2px 0">${proj.shortDesc || ''}</div>
           ${features.length > 0 ? `
             <ul style="margin:3px 0 0 0;padding-left:15px;font-size:10px;color:#4b5563">
