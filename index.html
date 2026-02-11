@@ -5403,7 +5403,7 @@ function downloadPDF() {
     populatePDFTemplate();
     console.log('Template populated, generating PDF...');
 
-    // Get the elements - need to show parent template too
+    // Get the template elements
     const template = document.getElementById('pdfTemplate');
     const element = document.getElementById('pdfContent');
     if (!element || !template) {
@@ -5411,19 +5411,14 @@ function downloadPDF() {
       return;
     }
 
-    // Clone element for clean rendering
-    const clone = element.cloneNode(true);
-    clone.style.display = 'block';
-    clone.style.width = '720px';
-    clone.style.padding = '0';
-    clone.style.margin = '0';
-    clone.style.position = 'absolute';
-    clone.style.left = '-9999px';
-    clone.style.top = '0';
-    clone.style.background = '#fff';
-    clone.style.overflow = 'hidden';
-    clone.style.boxSizing = 'border-box';
-    document.body.appendChild(clone);
+    // Temporarily show the template for rendering
+    template.style.display = 'block';
+    template.style.position = 'fixed';
+    template.style.left = '0';
+    template.style.top = '0';
+    template.style.zIndex = '-9999';
+    template.style.opacity = '0';
+    element.style.width = '720px';
 
     // Clean filename
     const safeName = (state.profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
@@ -5445,13 +5440,25 @@ function downloadPDF() {
       pagebreak: { mode: ['css', 'legacy'] }
     };
 
-    // Generate PDF from clone
-    html2pdf().set(opt).from(clone).save().then(() => {
-      document.body.removeChild(clone);
+    // Generate PDF directly from the element
+    html2pdf().set(opt).from(element).save().then(() => {
+      template.style.display = 'none';
+      template.style.position = '';
+      template.style.left = '';
+      template.style.top = '';
+      template.style.zIndex = '';
+      template.style.opacity = '';
+      element.style.width = '';
     }).catch(err => {
       console.error('PDF generation error:', err);
       alert('Error generating PDF: ' + err.message);
-      document.body.removeChild(clone);
+      template.style.display = 'none';
+      template.style.position = '';
+      template.style.left = '';
+      template.style.top = '';
+      template.style.zIndex = '';
+      template.style.opacity = '';
+      element.style.width = '';
     });
   } catch (err) {
     console.error('PDF setup error:', err);
