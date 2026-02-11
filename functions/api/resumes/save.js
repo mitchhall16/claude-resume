@@ -16,6 +16,7 @@ export async function onRequestPost(context) {
       tailoredSummary,
       resume,
       recruiterAssessment,
+      coverLetter,
       status,
       notes
     } = data;
@@ -42,6 +43,7 @@ export async function onRequestPost(context) {
       tailoredSummary: tailoredSummary || '',
       resume: resume || '',
       recruiterAssessment: recruiterAssessment || '',
+      coverLetter: coverLetter || null,
       status: status || 'generated',
       notes: notes || '',
       createdAt: new Date().toISOString(),

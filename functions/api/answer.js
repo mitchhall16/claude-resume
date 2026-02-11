@@ -37,17 +37,15 @@ ${(exp.bullets || []).map(b => '• ' + b).join('\n')}
       long: 'Write 2-3 paragraphs using the STAR format (Situation, Task, Action, Result). Be detailed and specific.'
     };
 
-    const prompt = `You are helping a job candidate answer an application question. Use ONLY their actual experience provided below.
+    const prompt = `You are helping a job candidate answer an application question.
 
 ## CRITICAL RULES
-1. ONLY mention companies, projects, roles, and details that are EXPLICITLY listed below
-2. DO NOT invent, hallucinate, or embellish ANY details
-3. Use the EXACT project names, company names, and descriptions provided
-4. If something isn't in their background, DO NOT mention it
-5. Stick to facts from the data below - no creative additions
-6. If the question contains text in [brackets], treat it as a hint for what to focus on or include in your answer - e.g., "[mention handleof.it]" means emphasize that project, "[use robotics experience]" means focus on robotics-related work
+1. If the user provides HINTS or INSTRUCTIONS in the context section below, FOLLOW THEM. They're telling you what story to tell.
+2. User hints might include personal stories not in their formal resume - USE THEM if provided.
+3. For formal resume items, use EXACT company/project names as listed.
+4. Don't invent details that weren't provided anywhere.
 
-## CANDIDATE'S BACKGROUND (USE ONLY THIS DATA)
+## CANDIDATE'S BACKGROUND
 
 **Name:** ${profile?.fullName || 'Not provided'}
 **Summary:** ${profile?.summary || 'Not provided'}
@@ -58,13 +56,19 @@ ${experienceText || 'No experience provided'}
 **Skills:**
 ${skillsText || 'No skills provided'}
 
-**Projects (USE EXACT NAMES):**
+**Projects:**
 ${projectsText || 'No projects provided'}
 
 **Education:**
 ${(education || []).map(e => `${e.degree} - ${e.school}`).join(', ') || 'Not provided'}
 
-${jobContext ? `## JOB/COMPANY CONTEXT\n${jobContext}\n` : ''}
+${jobContext ? `## USER'S HINTS & CONTEXT (PRIORITIZE THIS!)
+The user wrote these notes about what they want to include. USE THESE as your primary guide:
+---
+${jobContext}
+---
+If they mention specific stories, experiences, or angles (even if not in their formal resume above), incorporate those into the answer. They're giving you direction on what to focus on.
+` : ''}
 
 ## QUESTION TO ANSWER
 ${question}
@@ -72,11 +76,9 @@ ${question}
 ## INSTRUCTIONS
 ${lengthInstructions[length] || lengthInstructions.medium}
 
-Write in first person as the candidate. Reference ONLY the actual roles, companies, projects, and achievements listed above. Use EXACT names - do not change or "improve" project names or company names.
+Write in first person as the candidate. Sound natural and conversational.
 
-If the question is "Why do you want to work at [Company]?" and no company context is provided, write a template answer they can customize with [brackets] for company-specific details.
-
-Sound natural and conversational, not robotic.
+If the user gave hints about what to mention (moving to California, working their way up, a specific project, etc.), MAKE SURE to include those - that's why they wrote them!
 
 ## OUTPUT FORMAT
 Respond with JSON only:

@@ -90,7 +90,8 @@ export async function onRequestGet(context) {
       missingKeywordsCount: r.missingKeywords?.length || 0,
       createdAt: r.createdAt,
       updatedAt: r.updatedAt,
-      notes: r.notes
+      notes: r.notes,
+      aiScores: r.aiScores || null
     }));
 
     return new Response(JSON.stringify({
