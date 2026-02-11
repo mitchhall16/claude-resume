@@ -5420,7 +5420,7 @@ function downloadPDF() {
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, letterRendering: true },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-      pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+      pagebreak: { mode: ['css', 'legacy'] }
     };
 
     html2pdf().set(opt).from(element).save().then(() => {
@@ -5461,10 +5461,10 @@ function populatePDFTemplate() {
   let expHtml = '';
   if (generated.editedExperience && generated.editedExperience.length > 0) {
     expHtml = generated.editedExperience.map(exp => `
-      <div style="margin-bottom:12px;page-break-inside:avoid">
-        <div style="font-size:11px"><strong>${exp.title}</strong> — ${exp.company} <span style="color:#6b7280;white-space:nowrap">| ${exp.dates || ''}</span></div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:11px;page-break-after:avoid"><strong>${exp.title}</strong> — ${exp.company} <span style="color:#6b7280;white-space:nowrap">| ${exp.dates || ''}</span></div>
         <ul style="margin:4px 0 0 0;padding-left:18px;font-size:10px">
-          ${exp.bullets.map(b => `<li style="margin-bottom:3px">${b}</li>`).join('')}
+          ${exp.bullets.map(b => `<li style="margin-bottom:3px;page-break-inside:avoid">${b}</li>`).join('')}
         </ul>
       </div>
     `).join('');
@@ -5632,10 +5632,10 @@ function parseResumeExperience(resumeText) {
 
 function formatJobEntry(job, bullets) {
   return `
-    <div style="margin-bottom:12px;page-break-inside:avoid">
-      <div style="font-size:11px"><strong>${job.title}</strong> — ${job.company}${job.location ? ', ' + job.location : ''} <span style="color:#6b7280;white-space:nowrap">| ${job.dates}</span></div>
+    <div style="margin-bottom:12px">
+      <div style="font-size:11px;page-break-after:avoid"><strong>${job.title}</strong> — ${job.company}${job.location ? ', ' + job.location : ''} <span style="color:#6b7280;white-space:nowrap">| ${job.dates}</span></div>
       <ul style="margin:4px 0 0 0;padding-left:18px;font-size:10px">
-        ${bullets.map(b => `<li style="margin-bottom:3px">${b}</li>`).join('')}
+        ${bullets.map(b => `<li style="margin-bottom:3px;page-break-inside:avoid">${b}</li>`).join('')}
       </ul>
     </div>
   `;
