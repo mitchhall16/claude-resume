@@ -5400,18 +5400,29 @@ function downloadPDF() {
   try {
     populatePDFTemplate();
 
+    const template = document.getElementById('pdfTemplate');
     const element = document.getElementById('pdfContent');
-    if (!element) {
+    if (!element || !template) {
       alert('PDF template not found. Please refresh the page.');
       return;
     }
 
-    // Get the populated HTML as a string — avoids all positioning/visibility
-    // issues with html2canvas. html2pdf creates its own container internally.
-    const htmlString = '<div style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.4;width:720px;margin:0;padding:0;background:#fff">' + element.innerHTML + '</div>';
+    // Make template fully visible on screen so html2canvas can render it.
+    // This causes a brief white flash but is the only reliable approach —
+    // html2canvas cannot render elements that are hidden, offscreen, or
+    // behind other elements.
+    template.style.cssText = 'display:block;position:fixed;left:0;top:0;z-index:99999;background:#fff;width:100vw;height:100vh;overflow:auto;padding:0;margin:0';
+    element.style.width = '720px';
+    element.style.margin = '0 auto';
 
     const safeName = (state.profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
     const safeCompany = (state.lastGenerated.company || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
+
+    const hideTemplate = () => {
+      template.style.cssText = 'display:none';
+      element.style.width = '';
+      element.style.margin = '';
+    };
 
     const opt = {
       margin: [0.4, 0.5, 0.4, 0.5],
@@ -5428,10 +5439,16 @@ function downloadPDF() {
       pagebreak: { mode: ['css', 'legacy'] }
     };
 
-    html2pdf().set(opt).from(htmlString, 'string').save().catch(err => {
-      console.error('PDF generation error:', err);
-      alert('Error generating PDF: ' + err.message);
-    });
+    // Wait for browser to lay out the template before rendering
+    setTimeout(() => {
+      html2pdf().set(opt).from(element).save().then(() => {
+        hideTemplate();
+      }).catch(err => {
+        console.error('PDF generation error:', err);
+        alert('Error generating PDF: ' + err.message);
+        hideTemplate();
+      });
+    }, 100);
   } catch (err) {
     console.error('PDF setup error:', err);
     alert('Error setting up PDF: ' + err.message);
