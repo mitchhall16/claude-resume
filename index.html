@@ -4855,7 +4855,7 @@ console.log('Claude Resume initialized v4');
 <div id="pdfContent" style="font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;line-height:1.5;max-width:8.5in;margin:0 auto;padding:0;background:#fff">
 <!-- Header -->
 <div id="pdfHeader" style="text-align:center;padding-bottom:10px;margin-bottom:15px">
-<h1 id="pdfName" style="font-size:24px;font-weight:700;color:#1a1a1a;margin:0 0 6px 0"></h1>
+<h1 id="pdfName" style="font-size:24px;font-weight:700;color:#1a1a1a;margin:0 0 6px 0;background:none;-webkit-background-clip:unset;-webkit-text-fill-color:#1a1a1a"></h1>
 <div id="pdfContact" style="font-size:11px;color:#4b5563"></div>
 </div>
 <!-- Summary -->
@@ -5480,7 +5480,7 @@ function populatePDFTemplate() {
     <div style="margin-bottom:10px;page-break-inside:avoid">
       <div style="font-size:11px"><strong>${edu.degree}</strong> <span style="color:#6b7280;white-space:nowrap">| ${edu.start || ''} - ${edu.end || ''}</span></div>
       <div style="font-size:10px;color:#4b5563">${edu.school}${edu.location ? ', ' + edu.location : ''}${edu.gpa ? ' | GPA: ' + edu.gpa : ''}</div>
-      ${edu.extras ? `<div style="font-size:10px;color:#4b5563;margin-top:2px"><em>Relevant Courses:</em> ${edu.extras}</div>` : ''}
+      ${edu.extras ? `<div style="font-size:10px;color:#4b5563;margin-top:4px"><strong style="color:#374151">Relevant Courses:</strong> ${edu.extras}</div>` : ''}
     </div>
   `).join('');
   document.getElementById('pdfEducation').innerHTML = eduHtml;
@@ -5505,12 +5505,20 @@ function populatePDFTemplate() {
       const techArr = (proj.tech || '').split(',').map(t => t.trim()).filter(t => t);
       const techStr = techArr.slice(0, 5).join(', ');
       const features = proj.features || [];
-      // Truncate long URLs
-      const shortUrl = proj.url ? proj.url.replace('https://', '').replace('github.com/', '') : '';
-      const displayUrl = shortUrl.length > 30 ? shortUrl.substring(0, 30) + '...' : shortUrl;
+      // Build links line: GitHub + Live
+      const links = [];
+      if (proj.url) {
+        const shortGh = proj.url.replace('https://', '');
+        links.push(`<a href="${proj.url}" target="_blank" style="color:#2563eb;text-decoration:none">${shortGh}</a>`);
+      }
+      if (proj.liveUrl) {
+        const shortLive = proj.liveUrl.replace('https://', '').replace('http://', '');
+        links.push(`<a href="${proj.liveUrl}" target="_blank" style="color:#10b981;text-decoration:none">${shortLive}</a>`);
+      }
       return `
-        <div style="margin-bottom:10px;page-break-inside:avoid;overflow:hidden">
-          <div style="font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><strong>${proj.name}</strong>${proj.url ? ` — <a href="${proj.url}" target="_blank" style="color:#2563eb;font-size:9px;text-decoration:none">${displayUrl}</a>` : ''}</div>
+        <div style="margin-bottom:10px;page-break-inside:avoid">
+          <div style="font-size:11px"><strong>${proj.name}</strong></div>
+          ${links.length > 0 ? `<div style="font-size:9px;margin:1px 0">${links.join(' | ')}</div>` : ''}
           <div style="font-size:10px;color:#4b5563;margin:2px 0">${proj.shortDesc || ''}</div>
           ${features.length > 0 ? `
             <ul style="margin:3px 0 0 0;padding-left:15px;font-size:10px;color:#4b5563">
