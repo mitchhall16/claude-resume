@@ -5700,95 +5700,328 @@ function updateLibraryDisplay() {
   }
 }
 
-// ============ PDF Export Functions ============
+// ============ PDF Export Functions (ATS-Friendly Text-Based) ============
 
 function downloadPDF() {
-  console.log('downloadPDF called');
-  console.log('state.lastGenerated:', state.lastGenerated);
-
   if (!state.lastGenerated || !state.lastGenerated.resume) {
     alert('Please generate a resume first');
     return;
   }
 
-  // Check if html2pdf is loaded
-  console.log('html2pdf defined:', typeof html2pdf !== 'undefined');
-  if (typeof html2pdf === 'undefined') {
-    alert('PDF library not loaded. Please refresh the page and try again.');
-    return;
-  }
-
   try {
-    populatePDFTemplate();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+    const pageW = doc.internal.pageSize.getWidth();   // 612
+    const pageH = doc.internal.pageSize.getHeight();  // 792
+    const mL = 40, mR = 40, mT = 36, mB = 36;
+    const contentW = pageW - mL - mR;
+    let y = mT;
 
-    const template = document.getElementById('pdfTemplate');
-    const element = document.getElementById('pdfContent');
-    if (!element || !template) {
-      alert('PDF template not found. Please refresh the page.');
-      return;
+    const generated = state.lastGenerated;
+    const profile = state.profile;
+
+    function checkPage(needed) {
+      if (y + needed > pageH - mB) { doc.addPage(); y = mT; }
     }
 
-    // Show template off-screen so html2canvas captures it cleanly without page-flow whitespace
-    template.style.display = 'block';
-    template.style.position = 'fixed';
-    template.style.left = '-9999px';
-    template.style.top = '0';
-    template.style.width = '8.5in';
-    template.style.padding = '0';
-    template.style.margin = '0';
-    element.style.display = 'block';
+    function drawLine() {
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.line(mL, y, pageW - mR, y);
+      y += 6;
+    }
 
-    const safeName = (state.profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
-    const safeCompany = (state.lastGenerated.company || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
+    function sectionHeader(title) {
+      checkPage(24);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(11);
+      doc.setTextColor(37, 99, 235);
+      doc.text(title.toUpperCase(), mL, y);
+      y += 2;
+      doc.setDrawColor(229, 231, 235);
+      doc.setLineWidth(0.5);
+      doc.line(mL, y, pageW - mR, y);
+      y += 10;
+      doc.setTextColor(30, 30, 30);
+    }
 
-    // Dynamically add page-break-inside:avoid to job entries if "keep on same page" is checked
-    // Use whichever checkbox is visible (generate tab vs library tab), not both
-    const libCheckbox = document.getElementById('pdfKeepTogetherLib');
-    const genCheckbox = document.getElementById('pdfKeepTogether');
-    const libTabActive = document.getElementById('library')?.classList.contains('active');
-    const keepTogether = libTabActive ? (libCheckbox?.checked ?? false) : (genCheckbox?.checked ?? false);
-    console.log('keepTogether:', keepTogether, 'libTabActive:', libTabActive);
-    // Checkbox only controls experience job entries
-    const jobVal = keepTogether ? 'avoid' : 'auto';
-    element.querySelectorAll('#pdfExperience > div').forEach(div => {
-      div.style.pageBreakInside = jobVal;
-      div.style.breakInside = jobVal;
-    });
-    // Education, Skills, Projects sections always stay together (they're small, no reason to split)
-    element.querySelectorAll('#pdfEducationSection, #pdfSkillsSection, #pdfProjectsSection').forEach(section => {
-      section.style.pageBreakInside = 'avoid';
-      section.style.breakInside = 'avoid';
-    });
+    function wrappedText(text, x, fontSize, style, maxW, color) {
+      if (!text) return;
+      doc.setFont('helvetica', style || 'normal');
+      doc.setFontSize(fontSize);
+      if (color) doc.setTextColor(...color); else doc.setTextColor(30, 30, 30);
+      const lines = doc.splitTextToSize(text, maxW || contentW);
+      const lineH = fontSize * 1.3;
+      for (const line of lines) {
+        checkPage(lineH);
+        doc.text(line, x, y);
+        y += lineH;
+      }
+    }
 
-    const opt = {
-      margin: [0.3, 0.5, 0.3, 0.5],
-      filename: `${safeName}_${safeCompany}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0, scrollX: 0 },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
-      pagebreak: { mode: ['css', 'legacy'] }
-    };
+    // ── NAME ──
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.setTextColor(30, 30, 30);
+    const name = profile.fullName || 'Your Name';
+    const nameW = doc.getTextWidth(name);
+    doc.text(name, (pageW - nameW) / 2, y);
+    y += 16;
 
-    const resetTemplate = () => {
-      template.style.display = 'none';
-      template.style.position = '';
-      template.style.left = '';
-      template.style.top = '';
-      template.style.width = '';
-      template.style.padding = '';
-      template.style.margin = '';
-    };
+    // ── CONTACT INFO ──
+    const contactParts = [];
+    if (profile.email) contactParts.push(profile.email);
+    if (profile.phone) contactParts.push(profile.phone);
+    if (profile.location) contactParts.push(profile.location);
+    if (profile.linkedin) contactParts.push(profile.linkedin.replace('https://', ''));
+    if (profile.github) contactParts.push(profile.github.replace('https://', ''));
+    if (contactParts.length > 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(75, 85, 99);
+      const contactStr = contactParts.join('  |  ');
+      const contactW = doc.getTextWidth(contactStr);
+      // If contact line is too wide, split into multiple lines
+      if (contactW > contentW) {
+        const cLines = doc.splitTextToSize(contactParts.join(' | '), contentW);
+        for (const cl of cLines) {
+          const clW = doc.getTextWidth(cl);
+          doc.text(cl, (pageW - clW) / 2, y);
+          y += 11;
+        }
+      } else {
+        doc.text(contactStr, (pageW - contactW) / 2, y);
+        y += 11;
+      }
 
-    html2pdf().set(opt).from(element).save().then(() => {
-      resetTemplate();
-    }).catch(err => {
-      console.error('PDF generation error:', err);
-      alert('Error generating PDF: ' + err.message);
-      resetTemplate();
-    });
+      // Add clickable links
+      doc.setFontSize(9);
+      let linkX = (pageW - contactW) / 2;
+      contactParts.forEach((part, idx) => {
+        const partW = doc.getTextWidth(part);
+        const sepW = idx < contactParts.length - 1 ? doc.getTextWidth('  |  ') : 0;
+        if (part.includes('@')) {
+          doc.link(linkX, y - 18, partW, 12, { url: 'mailto:' + part });
+        } else if (part.includes('linkedin.com')) {
+          doc.link(linkX, y - 18, partW, 12, { url: 'https://' + part });
+        } else if (part.includes('github.com')) {
+          doc.link(linkX, y - 18, partW, 12, { url: 'https://' + part });
+        }
+        linkX += partW + sepW;
+      });
+    }
+    y += 4;
+
+    // ── SUMMARY ──
+    const summary = generated.tailoredSummary || profile.summary || '';
+    if (summary) {
+      sectionHeader('Professional Summary');
+      wrappedText(summary, mL, 10, 'normal', contentW, [60, 60, 60]);
+      y += 6;
+    }
+
+    // ── EXPERIENCE ──
+    let experiences = [];
+    if (generated.editedExperience && generated.editedExperience.length > 0) {
+      experiences = generated.editedExperience;
+    } else if (state.experience.length > 0) {
+      experiences = state.experience.map(exp => ({
+        title: exp.title, company: exp.company,
+        dates: `${exp.start} - ${exp.end || 'Present'}`,
+        bullets: exp.bullets || []
+      }));
+    }
+    if (experiences.length > 0) {
+      sectionHeader('Professional Experience');
+      experiences.forEach(exp => {
+        checkPage(30);
+        // Title — Company | Dates
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(30, 30, 30);
+        const titleStr = `${exp.title} — ${exp.company}`;
+        doc.text(titleStr, mL, y);
+        if (exp.dates) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(10);
+          doc.setTextColor(107, 114, 128);
+          const datesW = doc.getTextWidth(exp.dates);
+          doc.text(exp.dates, pageW - mR - datesW, y);
+        }
+        y += 14;
+        // Bullets
+        (exp.bullets || []).forEach(bullet => {
+          checkPage(14);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9.5);
+          doc.setTextColor(55, 55, 55);
+          const bulletLines = doc.splitTextToSize(bullet, contentW - 14);
+          bulletLines.forEach((bl, bIdx) => {
+            checkPage(12);
+            if (bIdx === 0) {
+              doc.text('•', mL + 4, y);
+            }
+            doc.text(bl, mL + 14, y);
+            y += 12;
+          });
+        });
+        y += 4;
+      });
+    }
+
+    // ── EDUCATION ──
+    if (state.education.length > 0) {
+      sectionHeader('Education');
+      state.education.forEach(edu => {
+        checkPage(20);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(30, 30, 30);
+        doc.text(edu.degree || '', mL, y);
+        if (edu.start || edu.end) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(10);
+          doc.setTextColor(107, 114, 128);
+          const dateStr = `${edu.start || ''} - ${edu.end || ''}`;
+          const datesW = doc.getTextWidth(dateStr);
+          doc.text(dateStr, pageW - mR - datesW, y);
+        }
+        y += 13;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9.5);
+        doc.setTextColor(75, 85, 99);
+        let schoolLine = edu.school || '';
+        if (edu.location) schoolLine += ', ' + edu.location;
+        if (edu.gpa) schoolLine += ' | GPA: ' + edu.gpa;
+        doc.text(schoolLine, mL, y);
+        y += 12;
+        if (edu.extras) {
+          checkPage(14);
+          doc.setFont('helvetica', 'italic');
+          doc.setFontSize(9);
+          const courseLines = doc.splitTextToSize('Relevant Courses: ' + edu.extras, contentW);
+          courseLines.forEach(cl => { checkPage(11); doc.text(cl, mL, y); y += 11; });
+        }
+        y += 4;
+      });
+    }
+
+    // ── SKILLS ──
+    const allSkills = [...(state.skills.technical || []), ...(state.skills.tools || [])];
+    if (allSkills.length > 0) {
+      sectionHeader('Skills');
+      wrappedText(allSkills.join(', '), mL, 10, 'normal', contentW, [55, 55, 55]);
+      y += 6;
+    }
+
+    // ── PROJECTS ──
+    const projectsToUse = (generated.editedProjects && generated.editedProjects.length > 0)
+      ? generated.editedProjects : state.projects;
+    const validProjects = (projectsToUse || []).filter(p => p.name);
+    if (validProjects.length > 0) {
+      sectionHeader('Projects');
+      validProjects.forEach(proj => {
+        checkPage(30);
+        // Project name
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.setTextColor(30, 30, 30);
+        doc.text(proj.name, mL, y);
+        // Tech on same line right-aligned
+        const techArr = (proj.tech || '').split(',').map(t => t.trim()).filter(t => t);
+        if (techArr.length > 0) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          doc.setTextColor(107, 114, 128);
+          const techStr = techArr.join(', ');
+          const techW = doc.getTextWidth(techStr);
+          doc.text(techStr, pageW - mR - techW, y);
+        }
+        y += 13;
+        // Links
+        const linkParts = [];
+        if (proj.url) linkParts.push(proj.url.replace('https://', ''));
+        if (proj.liveUrl) linkParts.push(proj.liveUrl.replace('https://', '').replace('http://', ''));
+        if (linkParts.length > 0) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8.5);
+          doc.setTextColor(37, 99, 235);
+          let lx = mL;
+          if (proj.url) {
+            const urlText = proj.url.replace('https://', '');
+            doc.text(urlText, lx, y);
+            const uw = doc.getTextWidth(urlText);
+            doc.link(lx, y - 8, uw, 10, { url: proj.url });
+            lx += uw;
+          }
+          if (proj.url && proj.liveUrl) {
+            doc.setTextColor(107, 114, 128);
+            doc.text('  |  ', lx, y);
+            lx += doc.getTextWidth('  |  ');
+          }
+          if (proj.liveUrl) {
+            doc.setTextColor(16, 185, 129);
+            const liveText = proj.liveUrl.replace('https://', '').replace('http://', '');
+            doc.text(liveText, lx, y);
+            const lw = doc.getTextWidth(liveText);
+            doc.link(lx, y - 8, lw, 10, { url: proj.liveUrl });
+          }
+          y += 11;
+        }
+        // Description
+        if (proj.shortDesc) {
+          wrappedText(proj.shortDesc, mL, 9.5, 'normal', contentW, [75, 85, 99]);
+        }
+        // Features (respecting maxFeatures)
+        const maxF = proj.maxFeatures || 3;
+        const features = (proj.features || []).slice(0, maxF);
+        if (features.length > 0) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(9);
+          doc.setTextColor(55, 55, 55);
+          checkPage(14);
+          // Render as bullet list for max ATS readability
+          features.forEach(f => {
+            checkPage(12);
+            const fLines = doc.splitTextToSize(f, contentW - 14);
+            fLines.forEach((fl, fi) => {
+              checkPage(11);
+              if (fi === 0) doc.text('▸', mL + 4, y);
+              doc.text(fl, mL + 14, y);
+              y += 11;
+            });
+          });
+        }
+        y += 6;
+      });
+    }
+
+    // ── CERTIFICATIONS ──
+    if (state.certs && state.certs.length > 0) {
+      sectionHeader('Certifications');
+      state.certs.forEach(cert => {
+        checkPage(14);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(30, 30, 30);
+        let certStr = cert.name;
+        doc.text(certStr, mL, y);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(75, 85, 99);
+        const orgStr = ` — ${cert.org}${cert.date ? ' (' + cert.date + ')' : ''}`;
+        doc.text(orgStr, mL + doc.getTextWidth(certStr), y);
+        y += 14;
+      });
+    }
+
+    // Save
+    const safeName = (profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
+    const safeCompany = (generated.company || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
+    doc.save(`${safeName}_${safeCompany}.pdf`);
+
   } catch (err) {
-    console.error('PDF setup error:', err);
-    alert('Error setting up PDF: ' + err.message);
+    console.error('PDF generation error:', err);
+    alert('Error generating PDF: ' + err.message);
   }
 }
 
@@ -6006,7 +6239,7 @@ function formatJobEntry(job, bullets) {
   `;
 }
 
-// ============ Cover Letter PDF Export ============
+// ============ Cover Letter PDF Export (ATS-Friendly Text-Based) ============
 
 function downloadCoverLetterPDF() {
   if (!state.lastGenerated || !state.lastGenerated.coverLetter) {
@@ -6014,68 +6247,101 @@ function downloadCoverLetterPDF() {
     return;
   }
 
-  // Check if html2pdf is loaded
-  if (typeof html2pdf === 'undefined') {
-    alert('PDF library not loaded. Please refresh the page and try again.');
-    return;
-  }
-
   try {
-    // Populate cover letter PDF template
-    populateCoverLetterPDFTemplate();
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'pt', format: 'letter' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const mL = 72, mR = 72, mT = 54, mB = 54; // 1 inch margins
+    const contentW = pageW - mL - mR;
+    let y = mT;
 
-    // Get the elements - need to show parent template too
-    const template = document.getElementById('coverLetterPdfTemplate');
-    const element = document.getElementById('coverLetterPdfContent');
-    if (!element || !template) {
-      alert('Cover letter PDF template not found. Please refresh the page.');
-      return;
+    const profile = state.profile;
+    const generated = state.lastGenerated;
+
+    // ── HEADER ──
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(30, 30, 30);
+    doc.text(profile.fullName || 'Your Name', mL, y);
+    y += 16;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(75, 85, 99);
+    const contactParts = [];
+    if (profile.email) contactParts.push(profile.email);
+    if (profile.phone) contactParts.push(profile.phone);
+    if (profile.location) contactParts.push(profile.location);
+    if (contactParts.length > 0) {
+      doc.text(contactParts.join(' | '), mL, y);
+      y += 14;
     }
 
-    // Show template off-screen for clean rendering
-    template.style.display = 'block';
-    template.style.position = 'fixed';
-    template.style.left = '-9999px';
-    template.style.top = '0';
-    template.style.width = '8.5in';
-    template.style.padding = '0';
-    template.style.margin = '0';
-    element.style.display = 'block';
+    // ── DATE ──
+    y += 10;
+    const today = new Date();
+    doc.setFontSize(10);
+    doc.setTextColor(30, 30, 30);
+    doc.text(today.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }), mL, y);
+    y += 24;
 
-    // Clean filename
-    const safeName = (state.profile.fullName || 'Cover_Letter').replace(/[^a-zA-Z0-9]/g, '_');
-    const safeCompany = (state.lastGenerated.company || '').replace(/[^a-zA-Z0-9]/g, '_');
+    // ── RECIPIENT ──
+    if (generated.company) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(generated.company, mL, y);
+      y += 14;
+    }
+    if (generated.title) {
+      doc.setFont('helvetica', 'normal');
+      doc.text(generated.title, mL, y);
+      y += 14;
+    }
+    y += 10;
 
-    // Configure options for html2pdf
-    const opt = {
-      margin: 0,
-      filename: `Cover_Letter_${safeName}_${safeCompany}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0, scrollX: 0 },
-      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-    };
+    // ── SALUTATION ──
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(30, 30, 30);
+    doc.text('Dear Hiring Manager,', mL, y);
+    y += 20;
 
-    const resetCLTemplate = () => {
-      template.style.display = 'none';
-      template.style.position = '';
-      template.style.left = '';
-      template.style.top = '';
-      template.style.width = '';
-      template.style.padding = '';
-      template.style.margin = '';
-    };
+    // ── BODY ──
+    let bodyText = (generated.coverLetter || '')
+      .replace(/^Dear[^,]*,?\s*/i, '')
+      .replace(/\s*Sincerely,?\s*[\s\S]*$/i, '')
+      .replace(/\s*Best regards,?\s*[\s\S]*$/i, '')
+      .replace(/\s*Kind regards,?\s*[\s\S]*$/i, '')
+      .trim();
 
-    // Generate PDF
-    html2pdf().set(opt).from(element).save().then(() => {
-      resetCLTemplate();
-    }).catch(err => {
-      console.error('Cover letter PDF generation error:', err);
-      alert('Error generating PDF: ' + err.message);
-      resetCLTemplate();
+    const paragraphs = bodyText.split(/\n\n+/).filter(p => p.trim());
+    paragraphs.forEach(para => {
+      const text = para.replace(/\n/g, ' ').trim();
+      const lines = doc.splitTextToSize(text, contentW);
+      lines.forEach(line => {
+        if (y + 14 > pageH - mB) { doc.addPage(); y = mT; }
+        doc.text(line, mL, y);
+        y += 14;
+      });
+      y += 8; // paragraph gap
     });
+
+    // ── CLOSING ──
+    y += 10;
+    if (y + 50 > pageH - mB) { doc.addPage(); y = mT; }
+    doc.text('Sincerely,', mL, y);
+    y += 30;
+    doc.setFont('helvetica', 'bold');
+    doc.text(profile.fullName || 'Your Name', mL, y);
+
+    // Save
+    const safeName = (profile.fullName || 'Cover_Letter').replace(/[^a-zA-Z0-9]/g, '_');
+    const safeCompany = (generated.company || '').replace(/[^a-zA-Z0-9]/g, '_');
+    doc.save(`Cover_Letter_${safeName}_${safeCompany}.pdf`);
+
   } catch (err) {
-    console.error('Cover letter PDF setup error:', err);
-    alert('Error setting up PDF: ' + err.message);
+    console.error('Cover letter PDF generation error:', err);
+    alert('Error generating PDF: ' + err.message);
   }
 }
 
