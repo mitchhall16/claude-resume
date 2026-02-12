@@ -5319,9 +5319,24 @@ function renderFeaturePresetChips(projName, projIdx) {
 function updateMaxFeatures(projIdx, newMax) {
   const proj = editableProjects[projIdx];
   proj.maxFeatures = newMax;
-  // Trim selected features if over the new max
+  const allFeatures = getAllFeaturesForProject(proj.name);
   if (proj.features && proj.features.length > newMax) {
+    // Trim if over the new max
     proj.features = proj.features.slice(0, newMax);
+  } else if (proj.features && proj.features.length < newMax && allFeatures.length > 0) {
+    // Auto-fill up to the new max from available features
+    for (const f of allFeatures) {
+      if (proj.features.length >= newMax) break;
+      if (!proj.features.includes(f)) {
+        proj.features.push(f);
+      }
+    }
+  }
+  // Sync to state.projects so PDF always has it and it persists
+  const match = state.projects.find(p => p.name === proj.name);
+  if (match) {
+    match.maxFeatures = newMax;
+    localStorage.setItem('resumeProjects', JSON.stringify(state.projects));
   }
   renderEditableProjects();
 }
@@ -5464,6 +5479,15 @@ async function saveResumeEdits() {
       }
     });
   }
+
+  // Sync maxFeatures back to state.projects so PDF always respects it
+  editableProjects.forEach(ep => {
+    const match = state.projects.find(p => p.name === ep.name);
+    if (match) {
+      match.maxFeatures = ep.maxFeatures || 3;
+    }
+  });
+  localStorage.setItem('resumeProjects', JSON.stringify(state.projects));
 
   // Update state
   state.lastGenerated.resume = newResume;
