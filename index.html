@@ -6021,15 +6021,11 @@ function downloadPDF() {
           doc.setTextColor(107, 114, 128);
           const availW = contentW - projNameW - 12;
           let techStr = sanitize(techArr.join(', '));
-          // Truncate to fit on one line
-          if (doc.getTextWidth(techStr) > availW) {
-            while (techStr.length > 0 && doc.getTextWidth(techStr + '...') > availW) {
-              // Remove last tech item
-              const lastComma = techStr.lastIndexOf(',');
-              if (lastComma === -1) { techStr = ''; break; }
-              techStr = techStr.substring(0, lastComma);
-            }
-            if (techStr) techStr += '...';
+          // Truncate to fit on one line, drop items that don't fit
+          while (techStr && doc.getTextWidth(techStr) > availW) {
+            const lastComma = techStr.lastIndexOf(',');
+            if (lastComma === -1) { techStr = ''; break; }
+            techStr = techStr.substring(0, lastComma);
           }
           if (techStr) {
             const techW = doc.getTextWidth(techStr);
