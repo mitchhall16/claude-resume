@@ -5692,6 +5692,9 @@ function downloadPDF() {
     template.style.position = 'fixed';
     template.style.left = '-9999px';
     template.style.top = '0';
+    template.style.width = '8.5in';
+    template.style.padding = '0';
+    template.style.margin = '0';
     element.style.display = 'block';
 
     const safeName = (state.profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
@@ -5720,23 +5723,27 @@ function downloadPDF() {
       margin: [0.3, 0.5, 0.3, 0.5],
       filename: `${safeName}_${safeCompany}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0, scrollX: 0 },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'] }
     };
 
-    html2pdf().set(opt).from(element).save().then(() => {
+    const resetTemplate = () => {
       template.style.display = 'none';
       template.style.position = '';
       template.style.left = '';
       template.style.top = '';
+      template.style.width = '';
+      template.style.padding = '';
+      template.style.margin = '';
+    };
+
+    html2pdf().set(opt).from(element).save().then(() => {
+      resetTemplate();
     }).catch(err => {
       console.error('PDF generation error:', err);
       alert('Error generating PDF: ' + err.message);
-      template.style.display = 'none';
-      template.style.position = '';
-      template.style.left = '';
-      template.style.top = '';
+      resetTemplate();
     });
   } catch (err) {
     console.error('PDF setup error:', err);
@@ -5986,6 +5993,9 @@ function downloadCoverLetterPDF() {
     template.style.position = 'fixed';
     template.style.left = '-9999px';
     template.style.top = '0';
+    template.style.width = '8.5in';
+    template.style.padding = '0';
+    template.style.margin = '0';
     element.style.display = 'block';
 
     // Clean filename
@@ -5997,23 +6007,27 @@ function downloadCoverLetterPDF() {
       margin: 0,
       filename: `Cover_Letter_${safeName}_${safeCompany}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0, scrollX: 0 },
       jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    };
+
+    const resetCLTemplate = () => {
+      template.style.display = 'none';
+      template.style.position = '';
+      template.style.left = '';
+      template.style.top = '';
+      template.style.width = '';
+      template.style.padding = '';
+      template.style.margin = '';
     };
 
     // Generate PDF
     html2pdf().set(opt).from(element).save().then(() => {
-      template.style.display = 'none';
-      template.style.position = '';
-      template.style.left = '';
-      template.style.top = '';
+      resetCLTemplate();
     }).catch(err => {
       console.error('Cover letter PDF generation error:', err);
       alert('Error generating PDF: ' + err.message);
-      template.style.display = 'none';
-      template.style.position = '';
-      template.style.left = '';
-      template.style.top = '';
+      resetCLTemplate();
     });
   } catch (err) {
     console.error('Cover letter PDF setup error:', err);
