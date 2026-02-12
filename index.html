@@ -5834,7 +5834,8 @@ function populatePDFTemplate() {
       // Limit tech to first 5 items
       const techArr = (proj.tech || '').split(',').map(t => t.trim()).filter(t => t);
       const techStr = techArr.slice(0, 5).join(', ');
-      const features = proj.features || [];
+      const maxF = proj.maxFeatures || 3;
+      const features = (proj.features || []).slice(0, maxF);
       // Build links line: GitHub + Live
       const links = [];
       if (proj.url) {
