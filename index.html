@@ -5981,7 +5981,7 @@ function downloadPDF() {
         y += 11;
         if (edu.extras) {
           checkPage(12);
-          doc.setFont('helvetica', 'italic');
+          doc.setFont('helvetica', 'bold');
           doc.setFontSize(8.5);
           const courseLines = doc.splitTextToSize('Relevant Courses: ' + edu.extras, contentW);
           courseLines.forEach(cl => { checkPage(10); doc.text(cl, mL, y); y += 10; });
