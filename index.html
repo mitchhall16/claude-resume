@@ -5982,46 +5982,33 @@ function downloadPDF() {
         if (edu.extras) {
           checkPage(12);
           doc.setFontSize(8.5);
-          doc.setFont('helvetica', 'normal');
-          const label = 'Relevant Courses: ';
-          doc.text(label, mL, y);
-          let cx = mL + doc.getTextWidth(label);
-          // Extract course entries: split on course code boundaries
-          const codePattern = /([A-Z]{2,5}\s*\d{3,5}[A-Z]?)\s*[:\-]?\s*([^A-Z]*?)(?=\s*[A-Z]{2,5}\s*\d{3,5}|$)/gi;
-          const parsed = [];
-          let m;
-          while ((m = codePattern.exec(edu.extras)) !== null) {
-            const code = m[1].trim();
-            // Get just the course name, strip long description after " - "
-            let name = (m[2] || '').split(/\s*-\s/)[0].replace(/[,;.]+$/, '').trim();
-            parsed.push({ code, name });
+          // Split text into segments: course codes bold, everything else normal
+          const fullText = 'Relevant Courses: ' + edu.extras;
+          const segments = [];
+          let last = 0;
+          const codeRe = /[A-Z]{2,5}\s*\d{3,5}[A-Z]?/g;
+          let cm;
+          while ((cm = codeRe.exec(fullText)) !== null) {
+            if (cm.index > last) segments.push({ text: fullText.slice(last, cm.index), bold: false });
+            segments.push({ text: cm[0], bold: true });
+            last = cm.index + cm[0].length;
           }
-          if (parsed.length > 0) {
-            parsed.forEach((c, ci) => {
-              const sep = ci < parsed.length - 1 ? ', ' : '';
-              const codeStr = sanitize(c.code);
-              const nameStr = sanitize(c.name ? ': ' + c.name + sep : sep);
-              doc.setFont('helvetica', 'bold');
-              const codeW = doc.getTextWidth(codeStr);
-              doc.setFont('helvetica', 'normal');
-              const nameW = doc.getTextWidth(nameStr);
-              if (cx + codeW + nameW > pageW - mR) {
+          if (last < fullText.length) segments.push({ text: fullText.slice(last), bold: false });
+          // Render segments with word wrapping
+          let cx = mL;
+          segments.forEach(seg => {
+            doc.setFont('helvetica', seg.bold ? 'bold' : 'normal');
+            const words = sanitize(seg.text).split(/(\s+)/);
+            words.forEach(word => {
+              if (!word) return;
+              const ww = doc.getTextWidth(word);
+              if (cx + ww > pageW - mR && word.trim()) {
                 y += 10; checkPage(10); cx = mL;
               }
-              doc.setFont('helvetica', 'bold');
-              doc.text(codeStr, cx, y); cx += codeW;
-              doc.setFont('helvetica', 'normal');
-              if (nameStr) { doc.text(nameStr, cx, y); cx += nameW; }
+              doc.text(word, cx, y);
+              cx += ww;
             });
-          } else {
-            // Fallback: no course codes found, just render as normal text
-            const courseLines = doc.splitTextToSize(sanitize(edu.extras), contentW - doc.getTextWidth(label));
-            courseLines.forEach((cl, ci) => {
-              checkPage(10);
-              doc.text(cl, ci === 0 ? cx : mL, y);
-              y += 10;
-            });
-          }
+          });
           y += 10;
         }
         y += 2;
