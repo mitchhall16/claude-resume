@@ -1453,6 +1453,20 @@ function formatDate(dateStr) {
   return date.toLocaleDateString();
 }
 
+function formatExpDate(dateStr) {
+  if (!dateStr || dateStr === 'Present') return dateStr || '';
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  // Handle YYYY-MM format from month input
+  const ym = dateStr.match(/^(\d{4})-(\d{2})$/);
+  if (ym) return `${months[parseInt(ym[2], 10) - 1]} ${ym[1]}`;
+  // Handle already formatted dates (e.g. "March 2022", "Mar 2022", "03/2022")
+  return dateStr;
+}
+
+function formatExpDateRange(start, end) {
+  return `${formatExpDate(start)} - ${formatExpDate(end) || 'Present'}`;
+}
+
 function updateProfileCompleteness() {
   const checks = [
     { name: 'Full Name', value: state.profile.fullName },
@@ -1553,7 +1567,7 @@ function renderExperience() {
       <div class="item-header">
         <div>
           <div class="item-title">${exp.title} at ${exp.company}</div>
-          <div class="item-subtitle">${exp.location} | ${exp.start} - ${exp.end || 'Present'}</div>
+          <div class="item-subtitle">${exp.location} | ${formatExpDateRange(exp.start, exp.end)}</div>
         </div>
         <div class="item-actions">
           <button class="secondary" onclick="editExperience(${i})">Edit</button>
@@ -1699,7 +1713,7 @@ function renderEducation() {
       <div class="item-header">
         <div>
           <div class="item-title">${edu.degree}</div>
-          <div class="item-subtitle">${edu.school} | ${edu.start} - ${edu.end}${edu.gpa ? ' | GPA: ' + edu.gpa : ''}</div>
+          <div class="item-subtitle">${edu.school} | ${formatExpDate(edu.start)} - ${formatExpDate(edu.end)}${edu.gpa ? ' | GPA: ' + edu.gpa : ''}</div>
         </div>
         <div class="item-actions">
           <button class="secondary" onclick="editEducation(${i})">Edit</button>
@@ -3501,7 +3515,10 @@ async function viewResumeDetail(resumeId) {
 
       <div class="card" style="margin-bottom:20px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
-          <h4 style="color:#00ff88;margin:0">Resume</h4>
+          <div style="display:flex;align-items:center;gap:12px">
+            <h4 style="color:#00ff88;margin:0">Resume</h4>
+            <span style="background:#1a2e1a;color:#00ff88;padding:3px 10px;border-radius:12px;font-size:0.75em;font-weight:600">${(resume.resume || '').split(/\s+/).filter(w => w.length > 0).length} words</span>
+          </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button onclick="editResumeFromLibrary()" class="secondary small" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">Edit</button>
             <button onclick="previewPDFFromLibrary()" class="secondary small" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">Preview</button>
@@ -3517,7 +3534,10 @@ async function viewResumeDetail(resumeId) {
       ${resume.coverLetter ? `
         <div class="card" style="margin-bottom:20px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
-            <h4 style="color:#10b981;margin:0">Cover Letter</h4>
+            <div style="display:flex;align-items:center;gap:12px">
+              <h4 style="color:#10b981;margin:0">Cover Letter</h4>
+              <span style="background:#1a2e2a;color:#10b981;padding:3px 10px;border-radius:12px;font-size:0.75em;font-weight:600">${resume.coverLetter.split(/\s+/).filter(w => w.length > 0).length} words</span>
+            </div>
             <div style="display:flex;gap:8px">
               <button onclick="editCoverLetterFromLibrary()" class="secondary small" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">Edit</button>
               <button onclick="copyCoverLetterFromDetail()" class="secondary small">Copy</button>
@@ -5053,7 +5073,7 @@ function parseExperienceFromResume(resumeText) {
     return state.experience.map(exp => ({
       title: exp.title,
       company: exp.company,
-      dates: `${exp.start} - ${exp.end || 'Present'}`,
+      dates: formatExpDateRange(exp.start, exp.end),
       bullets: exp.bullets || []
     }));
   }
@@ -5105,7 +5125,7 @@ function renderEditableExperience() {
               <div onclick="addExpFromSaved(${i})" style="padding:12px 16px;cursor:pointer;border-bottom:1px solid #333;transition:background 0.15s"
                    onmouseover="this.style.background='#2a2a3e'" onmouseout="this.style.background='transparent'">
                 <div style="font-weight:600;color:#fff;font-size:0.9em">${escapeHtml(exp.title)}</div>
-                <div style="color:#888;font-size:0.8em">${escapeHtml(exp.company)} | ${exp.start} - ${exp.end || 'Present'}</div>
+                <div style="color:#888;font-size:0.8em">${escapeHtml(exp.company)} | ${formatExpDateRange(exp.start, exp.end)}</div>
                 <div style="color:#666;font-size:0.75em;margin-top:2px">${exp.bullets.length} bullet point${exp.bullets.length !== 1 ? 's' : ''}</div>
               </div>
             `).join('')}
@@ -5234,7 +5254,7 @@ function addExpFromSaved(index) {
   editableExperience.push({
     title: exp.title,
     company: exp.company,
-    dates: `${exp.start} - ${exp.end || 'Present'}`,
+    dates: formatExpDateRange(exp.start, exp.end),
     bullets: [...(exp.bullets || [])]
   });
   renderEditableExperience();
@@ -5461,7 +5481,7 @@ async function saveResumeEdits() {
     newResume += 'EDUCATION\n';
     state.education.forEach(edu => {
       newResume += `${edu.degree} - ${edu.school}`;
-      if (edu.start || edu.end) newResume += ` | ${edu.start || ''} - ${edu.end || ''}`;
+      if (edu.start || edu.end) newResume += ` | ${formatExpDate(edu.start)} - ${formatExpDate(edu.end)}`;
       newResume += '\n';
     });
     newResume += '\n';
@@ -5848,7 +5868,7 @@ function downloadPDF() {
     } else if (state.experience.length > 0) {
       experiences = state.experience.map(exp => ({
         title: exp.title, company: exp.company,
-        dates: `${exp.start} - ${exp.end || 'Present'}`,
+        dates: formatExpDateRange(exp.start, exp.end),
         bullets: exp.bullets || []
       }));
     }
@@ -5905,7 +5925,7 @@ function downloadPDF() {
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(10);
           doc.setTextColor(107, 114, 128);
-          const dateStr = sanitize(`${edu.start || ''} - ${edu.end || ''}`);
+          const dateStr = sanitize(`${formatExpDate(edu.start)} - ${formatExpDate(edu.end)}`);
           const datesW = doc.getTextWidth(dateStr);
           doc.text(dateStr, pageW - mR - datesW, y);
         }
@@ -6105,7 +6125,7 @@ function populatePDFTemplate() {
   // Education with relevant courses on separate line
   const eduHtml = state.education.map(edu => `
     <div style="margin-bottom:10px;page-break-inside:avoid">
-      <div style="font-size:11px"><strong>${edu.degree}</strong> <span style="color:#6b7280;white-space:nowrap">| ${edu.start || ''} - ${edu.end || ''}</span></div>
+      <div style="font-size:11px"><strong>${edu.degree}</strong> <span style="color:#6b7280;white-space:nowrap">| ${formatExpDate(edu.start)} - ${formatExpDate(edu.end)}</span></div>
       <div style="font-size:10px;color:#4b5563">${edu.school}${edu.location ? ', ' + edu.location : ''}${edu.gpa ? ' | GPA: ' + edu.gpa : ''}</div>
       ${edu.extras ? `<div style="font-size:10px;color:#4b5563;margin-top:4px"><strong style="color:#374151">Relevant Courses:</strong> ${edu.extras.replace(/\b([A-Z]{2,5}\s?\d{3,5}[A-Z]?)\b/g, '<strong style="color:#1a1a1a">$1</strong>')}</div>` : ''}
     </div>
