@@ -5982,19 +5982,40 @@ function downloadPDF() {
         if (edu.extras) {
           checkPage(12);
           doc.setFontSize(8.5);
-          // "Relevant Courses:" label in normal weight
           doc.setFont('helvetica', 'normal');
           const label = 'Relevant Courses: ';
           doc.text(label, mL, y);
-          const labelW = doc.getTextWidth(label);
-          // Course names in bold, word-wrapped
-          doc.setFont('helvetica', 'bold');
-          const courseLines = doc.splitTextToSize(sanitize(edu.extras), contentW - labelW);
-          courseLines.forEach((cl, ci) => {
-            checkPage(10);
-            doc.text(cl, ci === 0 ? mL + labelW : mL, y);
-            y += 10;
+          let cx = mL + doc.getTextWidth(label);
+          // Split courses by comma, bold only course codes (e.g. CNT7501)
+          const courses = edu.extras.split(',').map(c => c.trim()).filter(c => c);
+          courses.forEach((course, ci) => {
+            const sep = ci < courses.length - 1 ? ', ' : '';
+            // Match course code pattern (letters + numbers) at start
+            const codeMatch = course.match(/^([A-Z]{2,5}\s*\d{3,5}[A-Z]?)\s*(.*)/i);
+            if (codeMatch) {
+              const code = sanitize(codeMatch[1]);
+              const rest = sanitize((codeMatch[2] ? codeMatch[2] : '') + sep);
+              // Check if it fits on current line
+              doc.setFont('helvetica', 'bold');
+              const codeW = doc.getTextWidth(code);
+              doc.setFont('helvetica', 'normal');
+              const restW = doc.getTextWidth(' ' + rest);
+              if (cx + codeW + restW > pageW - mR) {
+                y += 10; checkPage(10); cx = mL;
+              }
+              doc.setFont('helvetica', 'bold');
+              doc.text(code, cx, y); cx += codeW;
+              doc.setFont('helvetica', 'normal');
+              if (rest) { doc.text(' ' + rest, cx, y); cx += doc.getTextWidth(' ' + rest); }
+            } else {
+              const txt = sanitize(course + sep);
+              doc.setFont('helvetica', 'normal');
+              const tw = doc.getTextWidth(txt);
+              if (cx + tw > pageW - mR) { y += 10; checkPage(10); cx = mL; }
+              doc.text(txt, cx, y); cx += tw;
+            }
           });
+          y += 10;
         }
         y += 2;
       });
