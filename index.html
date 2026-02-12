@@ -5092,7 +5092,7 @@ function renderEditableExperience() {
   );
   container.innerHTML += `
     <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center">
-      <button onclick="addEditableExp()" class="secondary small">+ Add Blank</button>
+      <button onclick="addEditableExp()" class="secondary small">+ Add Experience</button>
       ${savedExps.length > 0 ? `
         <div style="position:relative;display:inline-block">
           <button onclick="toggleExpPicker()" class="small" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">+ From My Experience</button>
@@ -5174,7 +5174,7 @@ function renderEditableProjects() {
   );
   container.innerHTML += `
     <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center">
-      <button onclick="addEditableProject()" class="secondary small">+ Add Blank</button>
+      <button onclick="addEditableProject()" class="secondary small">+ Add Project</button>
       ${savedProjs.length > 0 ? `
         <div style="position:relative;display:inline-block">
           <button onclick="toggleProjPicker()" class="small" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">+ From My Projects</button>
@@ -5384,7 +5384,7 @@ function deleteFeaturePreset(projName, presetIdx) {
   renderEditableProjects();
 }
 
-function saveResumeEdits() {
+async function saveResumeEdits() {
   // Update the summary
   state.lastGenerated.tailoredSummary = document.getElementById('editSummary').value;
 
@@ -5456,6 +5456,7 @@ function saveResumeEdits() {
   state.lastGenerated.resume = newResume;
   state.lastGenerated.editedExperience = editableExperience;
   state.lastGenerated.editedProjects = editableProjects;
+  state.lastGenerated.tailoredSummary = document.getElementById('editSummary').value;
 
   // Update the display
   const resumeOutput = document.getElementById('resumeOutput');
@@ -5465,7 +5466,31 @@ function saveResumeEdits() {
   const libraryContent = document.getElementById('libraryResumeContent');
   if (libraryContent) libraryContent.textContent = newResume;
 
-  alert('Resume updated! You can now download the PDF.');
+  // Persist to database if this is a library resume
+  if (currentUser && state.currentResumeDetail && state.currentResumeDetail.id) {
+    try {
+      const res = await fetch('/api/applications/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: currentUser.email,
+          resumeId: state.currentResumeDetail.id,
+          resume: newResume,
+          tailoredSummary: state.lastGenerated.tailoredSummary
+        })
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      state.currentResumeDetail.resume = newResume;
+      state.currentResumeDetail.tailoredSummary = state.lastGenerated.tailoredSummary;
+      showToast('Resume saved!', 'success', 2000);
+    } catch (e) {
+      console.error('Error saving resume edits:', e);
+      alert('Resume updated locally but failed to save to server: ' + e.message);
+    }
+  } else {
+    alert('Resume updated! You can now download the PDF.');
+  }
+
   closeResumeEditor();
 }
 
@@ -5490,7 +5515,7 @@ function openCoverLetterEditor() {
   document.getElementById('coverLetterEditorModal').classList.add('active');
 }
 
-function saveCoverLetterEdits() {
+async function saveCoverLetterEdits() {
   const editedLetter = document.getElementById('editCoverLetter').value;
   state.lastGenerated.coverLetter = editedLetter;
 
@@ -5502,7 +5527,29 @@ function saveCoverLetterEdits() {
   const libraryContent = document.getElementById('libraryCoverLetterContent');
   if (libraryContent) libraryContent.textContent = editedLetter;
 
-  alert('Cover letter updated!');
+  // Persist to database if this is a library resume
+  if (currentUser && state.currentResumeDetail && state.currentResumeDetail.id) {
+    try {
+      const res = await fetch('/api/applications/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: currentUser.email,
+          resumeId: state.currentResumeDetail.id,
+          coverLetter: editedLetter
+        })
+      });
+      if (!res.ok) throw new Error('Failed to save');
+      state.currentResumeDetail.coverLetter = editedLetter;
+      showToast('Cover letter saved!', 'success', 2000);
+    } catch (e) {
+      console.error('Error saving cover letter edits:', e);
+      alert('Cover letter updated locally but failed to save to server: ' + e.message);
+    }
+  } else {
+    alert('Cover letter updated!');
+  }
+
   closeCoverLetterEditor();
 }
 
