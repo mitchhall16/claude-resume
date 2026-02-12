@@ -1329,6 +1329,7 @@ const state = {
   projects: JSON.parse(localStorage.getItem('resumeProjects') || '[]'),
   instructionPresets: JSON.parse(localStorage.getItem('instructionPresets') || '[]'),
   questionPresets: JSON.parse(localStorage.getItem('questionPresets') || '[]'),
+  featurePresets: JSON.parse(localStorage.getItem('featurePresets') || '{}'),
   lastGenerated: null,
   libraryStats: null
 };
@@ -4144,6 +4145,19 @@ async function loadUserData() {
       if (data.projects) state.projects = data.projects;
       if (data.instructionPresets) state.instructionPresets = data.instructionPresets;
       if (data.questionPresets) state.questionPresets = data.questionPresets;
+      if (data.featurePresets) state.featurePresets = data.featurePresets;
+
+      // Persist cloud data to localStorage so it survives page refreshes on any device
+      localStorage.setItem('resumeProfile', JSON.stringify(state.profile));
+      localStorage.setItem('resumeExperience', JSON.stringify(state.experience));
+      localStorage.setItem('resumeEducation', JSON.stringify(state.education));
+      localStorage.setItem('resumeCerts', JSON.stringify(state.certs));
+      localStorage.setItem('resumeSkills', JSON.stringify(state.skills));
+      localStorage.setItem('resumeProjects', JSON.stringify(state.projects));
+      localStorage.setItem('instructionPresets', JSON.stringify(state.instructionPresets));
+      localStorage.setItem('questionPresets', JSON.stringify(state.questionPresets));
+      localStorage.setItem('featurePresets', JSON.stringify(state.featurePresets));
+
       loadProfile();
       renderExperience();
       renderEducation();
@@ -4173,7 +4187,8 @@ async function saveUserData() {
         skills: state.skills,
         projects: state.projects,
         instructionPresets: state.instructionPresets,
-        questionPresets: state.questionPresets
+        questionPresets: state.questionPresets,
+        featurePresets: state.featurePresets
       })
     });
   } catch (e) {
@@ -4834,6 +4849,7 @@ const savedUser = localStorage.getItem('user');
 if (savedUser) {
   currentUser = JSON.parse(savedUser);
   updateAuthUI();
+  loadUserData();
 }
 
 // Initialize
@@ -5070,9 +5086,29 @@ function renderEditableExperience() {
     </div>
   `).join('');
 
-  // Add "Add Experience" button
+  // Add "Add Experience" buttons
+  const savedExps = (state.experience || []).filter(saved =>
+    !editableExperience.some(e => e.title === saved.title && e.company === saved.company)
+  );
   container.innerHTML += `
-    <button onclick="addEditableExp()" class="secondary small" style="margin-top:10px">+ Add Experience</button>
+    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center">
+      <button onclick="addEditableExp()" class="secondary small">+ Add Blank</button>
+      ${savedExps.length > 0 ? `
+        <div style="position:relative;display:inline-block">
+          <button onclick="toggleExpPicker()" class="small" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">+ From My Experience</button>
+          <div id="expPickerDropdown" style="display:none;position:absolute;left:0;top:100%;margin-top:6px;background:#1a1a1a;border:1px solid #444;border-radius:8px;min-width:320px;max-height:250px;overflow-y:auto;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,0.5)">
+            ${savedExps.map((exp, i) => `
+              <div onclick="addExpFromSaved(${state.experience.indexOf(exp)})" style="padding:12px 16px;cursor:pointer;border-bottom:1px solid #333;transition:background 0.15s"
+                   onmouseover="this.style.background='#2a2a3e'" onmouseout="this.style.background='transparent'">
+                <div style="font-weight:600;color:#fff;font-size:0.9em">${escapeHtml(exp.title)}</div>
+                <div style="color:#888;font-size:0.8em">${escapeHtml(exp.company)} | ${exp.start} - ${exp.end || 'Present'}</div>
+                <div style="color:#666;font-size:0.75em;margin-top:2px">${exp.bullets.length} bullet point${exp.bullets.length !== 1 ? 's' : ''}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+    </div>
   `;
 }
 
@@ -5118,17 +5154,44 @@ function renderEditableProjects() {
                 onchange="editableProjects[${i}].shortDesc = this.value"
                 placeholder="Project description..."
       >${escapeHtml(proj.shortDesc)}</textarea>
-      <label style="font-size:0.85em;color:#888;display:block;margin-bottom:4px">Key Features (one per line, up to 3 shown in PDF)</label>
-      <textarea rows="3" style="font-size:0.9em"
-                onchange="editableProjects[${i}].features = this.value.split('\\n').filter(f => f.trim())"
-                placeholder="Real-time data sync&#10;User authentication&#10;Export to PDF"
-      >${(proj.features || []).join('\n')}</textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <label style="font-size:0.85em;color:#888;margin:0">Key Features for PDF</label>
+        <label style="font-size:0.8em;color:#888;display:flex;align-items:center;gap:4px;margin:0">
+          Max:
+          <input type="number" min="1" max="20" value="${proj.maxFeatures || 3}"
+                 onchange="editableProjects[${i}].maxFeatures = parseInt(this.value) || 3; renderEditableProjects()"
+                 style="width:50px;padding:4px 6px;font-size:0.9em;text-align:center">
+        </label>
+      </div>
+      ${renderFeaturePresetChips(proj.name, i)}
+      ${renderFeatureCheckboxes(proj, i)}
     </div>
   `).join('');
 
-  // Add "Add Project" button
+  // Add "Add Project" buttons
+  const savedProjs = (state.projects || []).filter(saved =>
+    !editableProjects.some(p => p.name === saved.name)
+  );
   container.innerHTML += `
-    <button onclick="addEditableProject()" class="secondary small" style="margin-top:10px">+ Add Project</button>
+    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;align-items:center">
+      <button onclick="addEditableProject()" class="secondary small">+ Add Blank</button>
+      ${savedProjs.length > 0 ? `
+        <div style="position:relative;display:inline-block">
+          <button onclick="toggleProjPicker()" class="small" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">+ From My Projects</button>
+          <div id="projPickerDropdown" style="display:none;position:absolute;left:0;top:100%;margin-top:6px;background:#1a1a1a;border:1px solid #444;border-radius:8px;min-width:320px;max-height:250px;overflow-y:auto;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,0.5)">
+            ${savedProjs.map((proj, i) => `
+              <div onclick="addProjFromSaved(${state.projects.indexOf(proj)})" style="padding:12px 16px;cursor:pointer;border-bottom:1px solid #333;transition:background 0.15s"
+                   onmouseover="this.style.background='#2a2a3e'" onmouseout="this.style.background='transparent'">
+                <div style="font-weight:600;color:#fff;font-size:0.9em">${escapeHtml(proj.name)}</div>
+                <div style="color:#888;font-size:0.8em">${escapeHtml(proj.shortDesc || '')}</div>
+                ${proj.tech ? `<div style="color:#60a5fa;font-size:0.75em;margin-top:2px">${escapeHtml(proj.tech)}</div>` : ''}
+                <div style="color:#666;font-size:0.75em;margin-top:2px">${(proj.features || []).length} feature${(proj.features || []).length !== 1 ? 's' : ''}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+    </div>
   `;
 }
 
@@ -5146,6 +5209,178 @@ function addEditableProject() {
     liveUrl: '',
     features: []
   });
+  renderEditableProjects();
+}
+
+function toggleExpPicker() {
+  const dd = document.getElementById('expPickerDropdown');
+  const projDd = document.getElementById('projPickerDropdown');
+  if (projDd) projDd.style.display = 'none';
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleProjPicker() {
+  const dd = document.getElementById('projPickerDropdown');
+  const expDd = document.getElementById('expPickerDropdown');
+  if (expDd) expDd.style.display = 'none';
+  dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+}
+
+function addExpFromSaved(index) {
+  const exp = state.experience[index];
+  if (!exp) return;
+  editableExperience.push({
+    title: exp.title,
+    company: exp.company,
+    dates: `${exp.start} - ${exp.end || 'Present'}`,
+    bullets: [...(exp.bullets || [])]
+  });
+  renderEditableExperience();
+}
+
+function addProjFromSaved(index) {
+  const proj = state.projects[index];
+  if (!proj) return;
+  editableProjects.push({
+    name: proj.name || '',
+    shortDesc: proj.shortDesc || '',
+    tech: proj.tech || '',
+    url: proj.url || '',
+    liveUrl: proj.liveUrl || '',
+    features: [...(proj.features || [])]
+  });
+  renderEditableProjects();
+}
+
+// Close picker dropdowns when clicking outside
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#expPickerDropdown') && !e.target.closest('[onclick="toggleExpPicker()"]')) {
+    const dd = document.getElementById('expPickerDropdown');
+    if (dd) dd.style.display = 'none';
+  }
+  if (!e.target.closest('#projPickerDropdown') && !e.target.closest('[onclick="toggleProjPicker()"]')) {
+    const dd = document.getElementById('projPickerDropdown');
+    if (dd) dd.style.display = 'none';
+  }
+});
+
+function getAllFeaturesForProject(projName) {
+  const baseProj = state.projects.find(p => p.name === projName);
+  return baseProj ? (baseProj.features || []) : [];
+}
+
+function renderFeatureCheckboxes(proj, projIdx) {
+  const allFeatures = getAllFeaturesForProject(proj.name);
+  const selected = proj.features || [];
+  const maxFeatures = proj.maxFeatures || 3;
+  const atMax = selected.length >= maxFeatures;
+
+  if (allFeatures.length === 0) {
+    return `<textarea rows="3" style="font-size:0.9em"
+                onchange="editableProjects[${projIdx}].features = this.value.split('\\n').filter(f => f.trim())"
+                placeholder="Real-time data sync&#10;User authentication&#10;Export to PDF"
+      >${selected.join('\n')}</textarea>`;
+  }
+
+  return `<div id="featureCheckboxes-${projIdx}" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">
+    ${allFeatures.map(f => {
+      const checked = selected.includes(f);
+      const disabled = !checked && atMax;
+      return `<label style="display:flex;align-items:start;gap:6px;font-size:0.85em;color:${disabled ? '#666' : '#ddd'};cursor:${disabled ? 'not-allowed' : 'pointer'};line-height:1.3">
+        <input type="checkbox" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''}
+               onchange="toggleProjectFeature(${projIdx}, this, '${f.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}')"
+               style="accent-color:#00ff88;width:auto;min-width:16px;margin-top:2px;flex-shrink:0">
+        ${escapeHtml(f)}
+      </label>`;
+    }).join('')}
+  </div>
+  <button onclick="saveFeaturePreset(${projIdx})" class="secondary small" style="font-size:0.8em;padding:4px 10px">Save Selection as Preset</button>`;
+}
+
+function renderFeaturePresetChips(projName, projIdx) {
+  const presets = (state.featurePresets[projName] || []);
+  if (presets.length === 0) return '';
+
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+    ${presets.map((preset, pIdx) => `
+      <div style="display:inline-flex;align-items:center;gap:4px;background:#2a2a3e;padding:4px 10px;border-radius:16px;font-size:0.8em;cursor:pointer;border:1px solid #444;transition:all 0.2s"
+           onmouseenter="this.style.borderColor='#00ff88'"
+           onmouseleave="this.style.borderColor='#444'">
+        <span onclick="loadFeaturePreset(${projIdx}, ${pIdx})" style="color:#ddd">${escapeHtml(preset.name)}</span>
+        <span onclick="deleteFeaturePreset('${projName.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}', ${pIdx})" style="color:#888;font-size:13px;padding:0 2px" title="Delete preset">&times;</span>
+      </div>
+    `).join('')}
+  </div>`;
+}
+
+function toggleProjectFeature(projIdx, checkbox, featureText) {
+  const proj = editableProjects[projIdx];
+  const features = proj.features || [];
+  const maxFeatures = proj.maxFeatures || 3;
+  const idx = features.indexOf(featureText);
+
+  if (idx >= 0) {
+    features.splice(idx, 1);
+  } else if (features.length < maxFeatures) {
+    features.push(featureText);
+  } else {
+    checkbox.checked = false;
+    return;
+  }
+
+  proj.features = features;
+  renderEditableProjects();
+}
+
+function saveFeaturePreset(projIdx) {
+  const proj = editableProjects[projIdx];
+  if (!proj.features || proj.features.length === 0) {
+    alert('Please select at least one feature first');
+    return;
+  }
+
+  const name = prompt('Name this preset:');
+  if (!name) return;
+
+  if (!state.featurePresets[proj.name]) {
+    state.featurePresets[proj.name] = [];
+  }
+
+  const existing = state.featurePresets[proj.name];
+  const dupIdx = existing.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+  if (dupIdx >= 0) {
+    if (!confirm('A preset with this name already exists. Replace it?')) return;
+    existing[dupIdx] = { name, features: [...proj.features] };
+  } else {
+    existing.push({ name, features: [...proj.features] });
+  }
+
+  localStorage.setItem('featurePresets', JSON.stringify(state.featurePresets));
+  saveUserData();
+  renderEditableProjects();
+  alert('Preset saved!' + (currentUser ? ' Synced to your account.' : ''));
+}
+
+function loadFeaturePreset(projIdx, presetIdx) {
+  const proj = editableProjects[projIdx];
+  const presets = state.featurePresets[proj.name] || [];
+  if (!presets[presetIdx]) return;
+
+  proj.features = [...presets[presetIdx].features];
+  renderEditableProjects();
+}
+
+function deleteFeaturePreset(projName, presetIdx) {
+  if (!confirm('Delete this preset?')) return;
+
+  const presets = state.featurePresets[projName];
+  if (!presets) return;
+
+  presets.splice(presetIdx, 1);
+  if (presets.length === 0) delete state.featurePresets[projName];
+
+  localStorage.setItem('featurePresets', JSON.stringify(state.featurePresets));
+  saveUserData();
   renderEditableProjects();
 }
 
@@ -5409,22 +5644,37 @@ function downloadPDF() {
       return;
     }
 
-    // Show template (original working approach — no positioning tricks)
+    // Show template off-screen so html2canvas captures it cleanly without page-flow whitespace
     template.style.display = 'block';
+    template.style.position = 'fixed';
+    template.style.left = '-9999px';
+    template.style.top = '0';
     element.style.display = 'block';
 
     const safeName = (state.profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
     const safeCompany = (state.lastGenerated.company || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
 
     // Dynamically add page-break-inside:avoid to job entries if "keep on same page" is checked
-    const keepTogether = document.getElementById('pdfKeepTogether')?.checked || document.getElementById('pdfKeepTogetherLib')?.checked;
-    const jobDivs = element.querySelectorAll('#pdfExperience > div');
-    jobDivs.forEach(div => {
-      div.style.pageBreakInside = keepTogether ? 'avoid' : 'auto';
+    // Use whichever checkbox is visible (generate tab vs library tab), not both
+    const libCheckbox = document.getElementById('pdfKeepTogetherLib');
+    const genCheckbox = document.getElementById('pdfKeepTogether');
+    const libTabActive = document.getElementById('library')?.classList.contains('active');
+    const keepTogether = libTabActive ? (libCheckbox?.checked ?? false) : (genCheckbox?.checked ?? false);
+    console.log('keepTogether:', keepTogether, 'libTabActive:', libTabActive);
+    // Checkbox only controls experience job entries
+    const jobVal = keepTogether ? 'avoid' : 'auto';
+    element.querySelectorAll('#pdfExperience > div').forEach(div => {
+      div.style.pageBreakInside = jobVal;
+      div.style.breakInside = jobVal;
+    });
+    // Education, Skills, Projects sections always stay together (they're small, no reason to split)
+    element.querySelectorAll('#pdfEducationSection, #pdfSkillsSection, #pdfProjectsSection').forEach(section => {
+      section.style.pageBreakInside = 'avoid';
+      section.style.breakInside = 'avoid';
     });
 
     const opt = {
-      margin: [0.2, 0.5, 0.2, 0.5],
+      margin: [0.3, 0.5, 0.3, 0.5],
       filename: `${safeName}_${safeCompany}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, letterRendering: true },
@@ -5434,10 +5684,16 @@ function downloadPDF() {
 
     html2pdf().set(opt).from(element).save().then(() => {
       template.style.display = 'none';
+      template.style.position = '';
+      template.style.left = '';
+      template.style.top = '';
     }).catch(err => {
       console.error('PDF generation error:', err);
       alert('Error generating PDF: ' + err.message);
       template.style.display = 'none';
+      template.style.position = '';
+      template.style.left = '';
+      template.style.top = '';
     });
   } catch (err) {
     console.error('PDF setup error:', err);
@@ -5508,7 +5764,7 @@ function populatePDFTemplate() {
     : state.projects;
 
   if (projectsToUse && projectsToUse.length > 0) {
-    const projHtml = projectsToUse.filter(p => p.name).slice(0, 3).map(proj => {
+    const projHtml = projectsToUse.filter(p => p.name).map(proj => {
       // Limit tech to first 5 items
       const techArr = (proj.tech || '').split(',').map(t => t.trim()).filter(t => t);
       const techStr = techArr.slice(0, 5).join(', ');
@@ -5524,14 +5780,12 @@ function populatePDFTemplate() {
         links.push(`<a href="${proj.liveUrl}" target="_blank" style="color:#10b981;text-decoration:none">${shortLive}</a>`);
       }
       return `
-        <div style="margin-bottom:10px">
+        <div style="margin-bottom:10px;page-break-inside:avoid">
           <div style="font-size:11px;page-break-after:avoid"><strong>${proj.name}</strong></div>
           ${links.length > 0 ? `<div style="font-size:10px;margin:1px 0">${links.join(' | ')}</div>` : ''}
           <div style="font-size:10px;color:#4b5563;margin:2px 0">${proj.shortDesc || ''}</div>
           ${features.length > 0 ? `
-            <ul style="margin:3px 0 0 0;padding-left:15px;font-size:10px;color:#4b5563">
-              ${features.slice(0, 3).map(f => `<li>${f}</li>`).join('')}
-            </ul>
+            <div style="font-size:10px;color:#4b5563;margin:3px 0 0 0">${features.join('  &bull;  ')}</div>
           ` : ''}
           ${techStr ? `<div style="font-size:10px;color:#6b7280;margin-top:2px"><strong>Tech:</strong> ${techStr}</div>` : ''}
         </div>
@@ -5684,8 +5938,11 @@ function downloadCoverLetterPDF() {
       return;
     }
 
-    // Show both template and content for rendering
+    // Show template off-screen for clean rendering
     template.style.display = 'block';
+    template.style.position = 'fixed';
+    template.style.left = '-9999px';
+    template.style.top = '0';
     element.style.display = 'block';
 
     // Clean filename
@@ -5704,12 +5961,16 @@ function downloadCoverLetterPDF() {
     // Generate PDF
     html2pdf().set(opt).from(element).save().then(() => {
       template.style.display = 'none';
-      element.style.display = 'none';
+      template.style.position = '';
+      template.style.left = '';
+      template.style.top = '';
     }).catch(err => {
       console.error('Cover letter PDF generation error:', err);
       alert('Error generating PDF: ' + err.message);
       template.style.display = 'none';
-      element.style.display = 'none';
+      template.style.position = '';
+      template.style.left = '';
+      template.style.top = '';
     });
   } catch (err) {
     console.error('Cover letter PDF setup error:', err);
