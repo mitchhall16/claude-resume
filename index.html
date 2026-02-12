@@ -5986,35 +5986,42 @@ function downloadPDF() {
           const label = 'Relevant Courses: ';
           doc.text(label, mL, y);
           let cx = mL + doc.getTextWidth(label);
-          // Split courses by comma, bold only course codes (e.g. CNT7501)
-          const courses = edu.extras.split(',').map(c => c.trim()).filter(c => c);
-          courses.forEach((course, ci) => {
-            const sep = ci < courses.length - 1 ? ', ' : '';
-            // Match course code pattern (letters + numbers) at start
-            const codeMatch = course.match(/^([A-Z]{2,5}\s*\d{3,5}[A-Z]?)\s*(.*)/i);
-            if (codeMatch) {
-              const code = sanitize(codeMatch[1]);
-              const rest = sanitize((codeMatch[2] ? codeMatch[2] : '') + sep);
-              // Check if it fits on current line
+          // Extract course entries: split on course code boundaries
+          const codePattern = /([A-Z]{2,5}\s*\d{3,5}[A-Z]?)\s*[:\-]?\s*([^A-Z]*?)(?=\s*[A-Z]{2,5}\s*\d{3,5}|$)/gi;
+          const parsed = [];
+          let m;
+          while ((m = codePattern.exec(edu.extras)) !== null) {
+            const code = m[1].trim();
+            // Get just the course name, strip long description after " - "
+            let name = (m[2] || '').split(/\s*-\s/)[0].replace(/[,;.]+$/, '').trim();
+            parsed.push({ code, name });
+          }
+          if (parsed.length > 0) {
+            parsed.forEach((c, ci) => {
+              const sep = ci < parsed.length - 1 ? ', ' : '';
+              const codeStr = sanitize(c.code);
+              const nameStr = sanitize(c.name ? ': ' + c.name + sep : sep);
               doc.setFont('helvetica', 'bold');
-              const codeW = doc.getTextWidth(code);
+              const codeW = doc.getTextWidth(codeStr);
               doc.setFont('helvetica', 'normal');
-              const restW = doc.getTextWidth(' ' + rest);
-              if (cx + codeW + restW > pageW - mR) {
+              const nameW = doc.getTextWidth(nameStr);
+              if (cx + codeW + nameW > pageW - mR) {
                 y += 10; checkPage(10); cx = mL;
               }
               doc.setFont('helvetica', 'bold');
-              doc.text(code, cx, y); cx += codeW;
+              doc.text(codeStr, cx, y); cx += codeW;
               doc.setFont('helvetica', 'normal');
-              if (rest) { doc.text(' ' + rest, cx, y); cx += doc.getTextWidth(' ' + rest); }
-            } else {
-              const txt = sanitize(course + sep);
-              doc.setFont('helvetica', 'normal');
-              const tw = doc.getTextWidth(txt);
-              if (cx + tw > pageW - mR) { y += 10; checkPage(10); cx = mL; }
-              doc.text(txt, cx, y); cx += tw;
-            }
-          });
+              if (nameStr) { doc.text(nameStr, cx, y); cx += nameW; }
+            });
+          } else {
+            // Fallback: no course codes found, just render as normal text
+            const courseLines = doc.splitTextToSize(sanitize(edu.extras), contentW - doc.getTextWidth(label));
+            courseLines.forEach((cl, ci) => {
+              checkPage(10);
+              doc.text(cl, ci === 0 ? cx : mL, y);
+              y += 10;
+            });
+          }
           y += 10;
         }
         y += 2;
