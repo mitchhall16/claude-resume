@@ -3585,8 +3585,9 @@ function downloadPDFFromDetail() {
     return;
   }
 
-  // Set lastGenerated with saved resume data for PDF generation
+  // Set lastGenerated with saved resume data for PDF generation, preserving editedProjects/Experience
   state.lastGenerated = {
+    ...state.lastGenerated,
     resume: resume.resume,
     tailoredSummary: resume.tailoredSummary,
     company: resume.company,
