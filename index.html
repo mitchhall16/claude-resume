@@ -5877,7 +5877,8 @@ function downloadPDF() {
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(9.5);
           doc.setTextColor(55, 55, 55);
-          const bulletLines = doc.splitTextToSize(sanitize(bullet), contentW - 14);
+          const cleanBullet = bullet.replace(/^[\-\u2022\u2023\u25E6•*]\s*/, '');
+          const bulletLines = doc.splitTextToSize(sanitize(cleanBullet), contentW - 14);
           bulletLines.forEach((bl, bIdx) => {
             checkPage(12);
             if (bIdx === 0) {
@@ -5946,8 +5947,10 @@ function downloadPDF() {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10.5);
         doc.setTextColor(30, 30, 30);
-        doc.text(sanitize(proj.name), mL, y);
-        // Tech on same line right-aligned
+        const projNameText = sanitize(proj.name);
+        doc.text(projNameText, mL, y);
+        const projNameW = doc.getTextWidth(projNameText);
+        // Tech - same line if fits, otherwise next line
         const techArr = (proj.tech || '').split(',').map(t => t.trim()).filter(t => t);
         if (techArr.length > 0) {
           doc.setFont('helvetica', 'normal');
@@ -5955,9 +5958,24 @@ function downloadPDF() {
           doc.setTextColor(107, 114, 128);
           const techStr = sanitize(techArr.join(', '));
           const techW = doc.getTextWidth(techStr);
-          doc.text(techStr, pageW - mR - techW, y);
+          const gap = 12;
+          if (projNameW + gap + techW <= contentW) {
+            // Fits on same line - right-align
+            doc.text(techStr, pageW - mR - techW, y);
+            y += 13;
+          } else {
+            // Too long - put tech on its own line, word-wrapped
+            y += 13;
+            const techLines = doc.splitTextToSize(techStr, contentW);
+            techLines.forEach(line => {
+              checkPage(12);
+              doc.text(line, mL, y);
+              y += 11;
+            });
+          }
+        } else {
+          y += 13;
         }
-        y += 13;
         // Links
         const linkParts = [];
         if (proj.url) linkParts.push(proj.url.replace('https://', ''));
@@ -6003,7 +6021,8 @@ function downloadPDF() {
           // Render as bullet list for max ATS readability
           features.forEach(f => {
             checkPage(12);
-            const fLines = doc.splitTextToSize(sanitize(f), contentW - 14);
+            const cleanF = f.replace(/^[\-\u2022\u2023\u25E6•*]\s*/, '');
+            const fLines = doc.splitTextToSize(sanitize(cleanF), contentW - 14);
             fLines.forEach((fl, fi) => {
               checkPage(11);
               if (fi === 0) doc.text('-', mL + 5, y);
