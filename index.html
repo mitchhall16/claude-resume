@@ -5982,34 +5982,31 @@ function downloadPDF() {
         if (edu.extras) {
           checkPage(12);
           doc.setFontSize(8.5);
-          // Split text into segments: course codes bold, everything else normal
-          const fullText = 'Relevant Courses: ' + edu.extras;
-          const segments = [];
-          let last = 0;
-          const codeRe = /[A-Z]{2,5}\s*\d{3,5}[A-Z]?/g;
-          let cm;
-          while ((cm = codeRe.exec(fullText)) !== null) {
-            if (cm.index > last) segments.push({ text: fullText.slice(last, cm.index), bold: false });
-            segments.push({ text: cm[0], bold: true });
-            last = cm.index + cm[0].length;
-          }
-          if (last < fullText.length) segments.push({ text: fullText.slice(last), bold: false });
-          // Render segments with word wrapping
-          let cx = mL;
-          segments.forEach(seg => {
-            doc.setFont('helvetica', seg.bold ? 'bold' : 'normal');
-            const words = sanitize(seg.text).split(/(\s+)/);
-            words.forEach(word => {
-              if (!word) return;
-              const ww = doc.getTextWidth(word);
-              if (cx + ww > pageW - mR && word.trim()) {
-                y += 10; checkPage(10); cx = mL;
-              }
-              doc.text(word, cx, y);
-              cx += ww;
-            });
+          const fullText = sanitize('Relevant Courses: ' + edu.extras);
+          // Render all text as normal wrapped lines first
+          doc.setFont('helvetica', 'normal');
+          const lines = doc.splitTextToSize(fullText, contentW);
+          lines.forEach(line => {
+            checkPage(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(line, mL, y);
+            // Now find course codes in this line and overdraw them bold
+            const codeRe = /[A-Z]{2,5}\s*\d{3,5}[A-Z]?/g;
+            let m;
+            while ((m = codeRe.exec(line)) !== null) {
+              const before = line.substring(0, m.index);
+              doc.setFont('helvetica', 'normal');
+              const bx = mL + doc.getTextWidth(before);
+              // White out the normal text, then draw bold
+              doc.setFillColor(255, 255, 255);
+              doc.setFont('helvetica', 'bold');
+              const codeW = doc.getTextWidth(m[0]);
+              doc.rect(bx, y - 8, codeW, 10, 'F');
+              doc.setTextColor(30, 30, 30);
+              doc.text(m[0], bx, y);
+            }
+            y += 10;
           });
-          y += 10;
         }
         y += 2;
       });
