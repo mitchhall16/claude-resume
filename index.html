@@ -3517,7 +3517,7 @@ async function viewResumeDetail(resumeId) {
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
           <div style="display:flex;align-items:center;gap:12px">
             <h4 style="color:#00ff88;margin:0">Resume</h4>
-            <span style="background:#1a2e1a;color:#00ff88;padding:3px 10px;border-radius:12px;font-size:0.75em;font-weight:600">${(resume.resume || '').split(/\s+/).filter(w => w.length > 0).length} words</span>
+            <span id="resumeWordCount" style="background:#1a2e1a;color:#00ff88;padding:3px 10px;border-radius:12px;font-size:0.75em;font-weight:600">${countPDFWords(resume)} words</span>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button onclick="editResumeFromLibrary()" class="secondary small" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">Edit</button>
@@ -5721,6 +5721,48 @@ function updateLibraryDisplay() {
   }
 }
 
+function countPDFWords(resume) {
+  // Count all words that actually appear in the PDF (not just the text blob)
+  const parts = [];
+  const profile = state.profile || {};
+  if (profile.fullName) parts.push(profile.fullName);
+  if (profile.email) parts.push(profile.email);
+  if (profile.phone) parts.push(profile.phone);
+  if (profile.location) parts.push(profile.location);
+  const summary = (resume && resume.tailoredSummary) || profile.summary || '';
+  if (summary) parts.push(summary);
+  const exps = (resume && resume.editedExperience && resume.editedExperience.length > 0)
+    ? resume.editedExperience
+    : state.experience.map(e => ({ title: e.title, company: e.company, dates: `${e.start} ${e.end}`, bullets: e.bullets || [] }));
+  exps.forEach(exp => {
+    if (exp.title) parts.push(exp.title);
+    if (exp.company) parts.push(exp.company);
+    if (exp.dates) parts.push(exp.dates);
+    (exp.bullets || []).forEach(b => parts.push(b));
+  });
+  state.education.forEach(edu => {
+    if (edu.degree) parts.push(edu.degree);
+    if (edu.school) parts.push(edu.school);
+    if (edu.extras) parts.push(edu.extras);
+  });
+  const allSkills = [...(state.skills.technical || []), ...(state.skills.tools || [])];
+  if (allSkills.length > 0) parts.push(allSkills.join(', '));
+  const projs = (resume && resume.editedProjects && resume.editedProjects.length > 0)
+    ? resume.editedProjects : state.projects;
+  (projs || []).forEach(proj => {
+    if (proj.name) parts.push(proj.name);
+    if (proj.tech) parts.push(proj.tech);
+    if (proj.shortDesc) parts.push(proj.shortDesc);
+    const maxF = proj.maxFeatures || 3;
+    (proj.features || []).slice(0, maxF).forEach(f => parts.push(f));
+  });
+  (state.certs || []).forEach(cert => {
+    if (cert.name) parts.push(cert.name);
+    if (cert.org) parts.push(cert.org);
+  });
+  return parts.join(' ').split(/\s+/).filter(w => w.length > 0).length;
+}
+
 // ============ PDF Export Functions (ATS-Friendly Text-Based) ============
 
 function downloadPDF() {
@@ -5773,16 +5815,17 @@ function downloadPDF() {
     }
 
     function sectionHeader(title) {
-      checkPage(24);
+      checkPage(20);
+      y += 2;
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
+      doc.setFontSize(10);
       doc.setTextColor(37, 99, 235);
       doc.text(title.toUpperCase(), mL, y);
       y += 2;
-      doc.setDrawColor(229, 231, 235);
+      doc.setDrawColor(200, 210, 230);
       doc.setLineWidth(0.5);
       doc.line(mL, y, pageW - mR, y);
-      y += 10;
+      y += 8;
       doc.setTextColor(30, 30, 30);
     }
 
@@ -5792,7 +5835,7 @@ function downloadPDF() {
       doc.setFontSize(fontSize);
       if (color) doc.setTextColor(...color); else doc.setTextColor(30, 30, 30);
       const lines = doc.splitTextToSize(sanitize(text), maxW || contentW);
-      const lineH = fontSize * 1.3;
+      const lineH = fontSize * 1.2;
       for (const line of lines) {
         checkPage(lineH);
         doc.text(line, x, y);
@@ -5802,12 +5845,12 @@ function downloadPDF() {
 
     // ── NAME ──
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
+    doc.setFontSize(18);
     doc.setTextColor(30, 30, 30);
     const name = profile.fullName || 'Your Name';
     const nameW = doc.getTextWidth(name);
     doc.text(name, (pageW - nameW) / 2, y);
-    y += 16;
+    y += 14;
 
     // ── CONTACT INFO ──
     const contactParts = [];
@@ -5851,14 +5894,14 @@ function downloadPDF() {
         linkX += partW + sepW;
       });
     }
-    y += 4;
+    y += 2;
 
     // ── SUMMARY ──
     const summary = generated.tailoredSummary || profile.summary || '';
     if (summary) {
       sectionHeader('Professional Summary');
-      wrappedText(summary, mL, 10, 'normal', contentW, [60, 60, 60]);
-      y += 6;
+      wrappedText(summary, mL, 9.5, 'normal', contentW, [60, 60, 60]);
+      y += 3;
     }
 
     // ── EXPERIENCE ──
@@ -5875,40 +5918,40 @@ function downloadPDF() {
     if (experiences.length > 0) {
       sectionHeader('Professional Experience');
       experiences.forEach(exp => {
-        checkPage(30);
+        checkPage(24);
         // Title — Company | Dates
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10.5);
+        doc.setFontSize(10);
         doc.setTextColor(30, 30, 30);
         const titleStr = sanitize(`${exp.title} - ${exp.company}`);
         doc.text(titleStr, mL, y);
         if (exp.dates) {
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(10);
+          doc.setFontSize(9.5);
           doc.setTextColor(107, 114, 128);
           const datesStr = sanitize(exp.dates);
           const datesW = doc.getTextWidth(datesStr);
           doc.text(datesStr, pageW - mR - datesW, y);
         }
-        y += 14;
+        y += 12;
         // Bullets
         (exp.bullets || []).forEach(bullet => {
-          checkPage(14);
+          checkPage(11);
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(9.5);
+          doc.setFontSize(9);
           doc.setTextColor(55, 55, 55);
           const cleanBullet = bullet.replace(/^[\-\u2022\u2023\u25E6•*]\s*/, '');
-          const bulletLines = doc.splitTextToSize(sanitize(cleanBullet), contentW - 14);
+          const bulletLines = doc.splitTextToSize(sanitize(cleanBullet), contentW - 12);
           bulletLines.forEach((bl, bIdx) => {
-            checkPage(12);
+            checkPage(10);
             if (bIdx === 0) {
-              doc.text('-', mL + 5, y);
+              doc.text('-', mL + 4, y);
             }
-            doc.text(bl, mL + 14, y);
-            y += 12;
+            doc.text(bl, mL + 12, y);
+            y += 10;
           });
         });
-        y += 4;
+        y += 3;
       });
     }
 
@@ -5916,34 +5959,34 @@ function downloadPDF() {
     if (state.education.length > 0) {
       sectionHeader('Education');
       state.education.forEach(edu => {
-        checkPage(20);
+        checkPage(18);
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10.5);
+        doc.setFontSize(10);
         doc.setTextColor(30, 30, 30);
         doc.text(sanitize(edu.degree || ''), mL, y);
         if (edu.start || edu.end) {
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(10);
+          doc.setFontSize(9.5);
           doc.setTextColor(107, 114, 128);
           const dateStr = sanitize(`${formatExpDate(edu.start)} - ${formatExpDate(edu.end)}`);
           const datesW = doc.getTextWidth(dateStr);
           doc.text(dateStr, pageW - mR - datesW, y);
         }
-        y += 13;
+        y += 11;
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(9.5);
+        doc.setFontSize(9);
         doc.setTextColor(75, 85, 99);
         let schoolLine = sanitize((edu.school || '') + (edu.location ? ', ' + edu.location : '') + (edu.gpa ? ' | GPA: ' + edu.gpa : ''));
         doc.text(schoolLine, mL, y);
-        y += 12;
+        y += 11;
         if (edu.extras) {
-          checkPage(14);
+          checkPage(12);
           doc.setFont('helvetica', 'italic');
-          doc.setFontSize(9);
+          doc.setFontSize(8.5);
           const courseLines = doc.splitTextToSize('Relevant Courses: ' + edu.extras, contentW);
-          courseLines.forEach(cl => { checkPage(11); doc.text(cl, mL, y); y += 11; });
+          courseLines.forEach(cl => { checkPage(10); doc.text(cl, mL, y); y += 10; });
         }
-        y += 4;
+        y += 2;
       });
     }
 
@@ -5951,8 +5994,8 @@ function downloadPDF() {
     const allSkills = [...(state.skills.technical || []), ...(state.skills.tools || [])];
     if (allSkills.length > 0) {
       sectionHeader('Skills');
-      wrappedText(sanitize(allSkills.join(', ')), mL, 10, 'normal', contentW, [55, 55, 55]);
-      y += 6;
+      wrappedText(sanitize(allSkills.join(', ')), mL, 9, 'normal', contentW, [55, 55, 55]);
+      y += 3;
     }
 
     // ── PROJECTS ──
@@ -5962,10 +6005,10 @@ function downloadPDF() {
     if (validProjects.length > 0) {
       sectionHeader('Projects');
       validProjects.forEach(proj => {
-        checkPage(30);
+        checkPage(24);
         // Project name
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10.5);
+        doc.setFontSize(10);
         doc.setTextColor(30, 30, 30);
         const projNameText = sanitize(proj.name);
         doc.text(projNameText, mL, y);
@@ -5974,27 +6017,25 @@ function downloadPDF() {
         const techArr = (proj.tech || '').split(',').map(t => t.trim()).filter(t => t);
         if (techArr.length > 0) {
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(9);
+          doc.setFontSize(8.5);
           doc.setTextColor(107, 114, 128);
           const techStr = sanitize(techArr.join(', '));
           const techW = doc.getTextWidth(techStr);
           const gap = 12;
           if (projNameW + gap + techW <= contentW) {
-            // Fits on same line - right-align
             doc.text(techStr, pageW - mR - techW, y);
-            y += 13;
+            y += 11;
           } else {
-            // Too long - put tech on its own line, word-wrapped
-            y += 13;
+            y += 11;
             const techLines = doc.splitTextToSize(techStr, contentW);
             techLines.forEach(line => {
-              checkPage(12);
+              checkPage(10);
               doc.text(line, mL, y);
-              y += 11;
+              y += 10;
             });
           }
         } else {
-          y += 13;
+          y += 11;
         }
         // Links
         const linkParts = [];
@@ -6002,7 +6043,7 @@ function downloadPDF() {
         if (proj.liveUrl) linkParts.push(proj.liveUrl.replace('https://', '').replace('http://', ''));
         if (linkParts.length > 0) {
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(8.5);
+          doc.setFontSize(8);
           doc.setTextColor(37, 99, 235);
           let lx = mL;
           if (proj.url) {
@@ -6024,34 +6065,33 @@ function downloadPDF() {
             const lw = doc.getTextWidth(liveText);
             doc.link(lx, y - 8, lw, 10, { url: proj.liveUrl });
           }
-          y += 11;
+          y += 10;
         }
         // Description
         if (proj.shortDesc) {
-          wrappedText(proj.shortDesc, mL, 9.5, 'normal', contentW, [75, 85, 99]);
+          wrappedText(proj.shortDesc, mL, 9, 'normal', contentW, [75, 85, 99]);
         }
         // Features (respecting maxFeatures)
         const maxF = proj.maxFeatures || 3;
         const features = (proj.features || []).slice(0, maxF);
         if (features.length > 0) {
           doc.setFont('helvetica', 'normal');
-          doc.setFontSize(9);
+          doc.setFontSize(8.5);
           doc.setTextColor(55, 55, 55);
-          checkPage(14);
-          // Render as bullet list for max ATS readability
+          checkPage(11);
           features.forEach(f => {
-            checkPage(12);
+            checkPage(10);
             const cleanF = f.replace(/^[\-\u2022\u2023\u25E6•*]\s*/, '');
-            const fLines = doc.splitTextToSize(sanitize(cleanF), contentW - 14);
+            const fLines = doc.splitTextToSize(sanitize(cleanF), contentW - 12);
             fLines.forEach((fl, fi) => {
-              checkPage(11);
-              if (fi === 0) doc.text('-', mL + 5, y);
-              doc.text(fl, mL + 14, y);
-              y += 11;
+              checkPage(10);
+              if (fi === 0) doc.text('-', mL + 4, y);
+              doc.text(fl, mL + 12, y);
+              y += 10;
             });
           });
         }
-        y += 6;
+        y += 3;
       });
     }
 
@@ -6059,9 +6099,9 @@ function downloadPDF() {
     if (state.certs && state.certs.length > 0) {
       sectionHeader('Certifications');
       state.certs.forEach(cert => {
-        checkPage(14);
+        checkPage(12);
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
+        doc.setFontSize(9.5);
         doc.setTextColor(30, 30, 30);
         let certStr = sanitize(cert.name);
         doc.text(certStr, mL, y);
@@ -6069,7 +6109,7 @@ function downloadPDF() {
         doc.setTextColor(75, 85, 99);
         const orgStr = sanitize(` - ${cert.org}${cert.date ? ' (' + cert.date + ')' : ''}`);
         doc.text(orgStr, mL + doc.getTextWidth(certStr), y);
-        y += 14;
+        y += 11;
       });
     }
 
