@@ -4966,15 +4966,19 @@ function openResumeEditor() {
   ];
   document.getElementById('editSkills').value = allSkills.join(', ');
 
-  // Projects - map from state.projects format
-  editableProjects = (state.projects || []).map(p => ({
-    name: p.name || '',
-    shortDesc: p.shortDesc || '',
-    tech: p.tech || '',
-    url: p.url || '',
-    liveUrl: p.liveUrl || '',
-    features: p.features || []
-  }));
+  // Projects - map from state.projects format, pre-select only first maxFeatures
+  editableProjects = (state.projects || []).map(p => {
+    const maxF = p.maxFeatures || 3;
+    return {
+      name: p.name || '',
+      shortDesc: p.shortDesc || '',
+      tech: p.tech || '',
+      url: p.url || '',
+      liveUrl: p.liveUrl || '',
+      features: (p.features || []).slice(0, maxF),
+      maxFeatures: maxF
+    };
+  });
   renderEditableProjects();
 
   document.getElementById('resumeEditorModal').classList.add('active');
@@ -5157,7 +5161,7 @@ function renderEditableProjects() {
         <label style="font-size:0.8em;color:#888;display:flex;align-items:center;gap:4px;margin:0">
           Max:
           <input type="number" min="1" max="20" value="${proj.maxFeatures || 3}"
-                 onchange="editableProjects[${i}].maxFeatures = parseInt(this.value) || 3; renderEditableProjects()"
+                 onchange="updateMaxFeatures(${i}, parseInt(this.value) || 3)"
                  style="width:50px;padding:4px 6px;font-size:0.9em;text-align:center">
         </label>
       </div>
@@ -5237,13 +5241,15 @@ function addExpFromSaved(index) {
 function addProjFromSaved(index) {
   const proj = state.projects[index];
   if (!proj) return;
+  const maxF = 3;
   editableProjects.push({
     name: proj.name || '',
     shortDesc: proj.shortDesc || '',
     tech: proj.tech || '',
     url: proj.url || '',
     liveUrl: proj.liveUrl || '',
-    features: [...(proj.features || [])]
+    features: (proj.features || []).slice(0, maxF),
+    maxFeatures: maxF
   });
   renderEditableProjects();
 }
@@ -5307,6 +5313,16 @@ function renderFeaturePresetChips(projName, projIdx) {
       </div>
     `).join('')}
   </div>`;
+}
+
+function updateMaxFeatures(projIdx, newMax) {
+  const proj = editableProjects[projIdx];
+  proj.maxFeatures = newMax;
+  // Trim selected features if over the new max
+  if (proj.features && proj.features.length > newMax) {
+    proj.features = proj.features.slice(0, newMax);
+  }
+  renderEditableProjects();
 }
 
 function toggleProjectFeature(projIdx, checkbox, featureText) {
