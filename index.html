@@ -6019,24 +6019,24 @@ function downloadPDF() {
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(8.5);
           doc.setTextColor(107, 114, 128);
-          const techStr = sanitize(techArr.join(', '));
-          const techW = doc.getTextWidth(techStr);
-          const gap = 12;
-          if (projNameW + gap + techW <= contentW) {
-            doc.text(techStr, pageW - mR - techW, y);
-            y += 11;
-          } else {
-            y += 11;
-            const techLines = doc.splitTextToSize(techStr, contentW);
-            techLines.forEach(line => {
-              checkPage(10);
-              doc.text(line, mL, y);
-              y += 10;
-            });
+          const availW = contentW - projNameW - 12;
+          let techStr = sanitize(techArr.join(', '));
+          // Truncate to fit on one line
+          if (doc.getTextWidth(techStr) > availW) {
+            while (techStr.length > 0 && doc.getTextWidth(techStr + '...') > availW) {
+              // Remove last tech item
+              const lastComma = techStr.lastIndexOf(',');
+              if (lastComma === -1) { techStr = ''; break; }
+              techStr = techStr.substring(0, lastComma);
+            }
+            if (techStr) techStr += '...';
           }
-        } else {
-          y += 11;
+          if (techStr) {
+            const techW = doc.getTextWidth(techStr);
+            doc.text(techStr, pageW - mR - techW, y);
+          }
         }
+        y += 11;
         // Links
         const linkParts = [];
         if (proj.url) linkParts.push(proj.url.replace('https://', ''));
