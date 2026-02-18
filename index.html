@@ -4981,12 +4981,19 @@ function openResumeEditor() {
   editableExperience = parseExperienceFromResume(resumeText);
   renderEditableExperience();
 
-  // Skills
-  const allSkills = [
-    ...(state.skills.technical || []),
-    ...(state.skills.tools || [])
-  ];
-  document.getElementById('editSkills').value = allSkills.join(', ');
+  // Skills — prefer previously edited skills over profile defaults
+  const editedSkills = state.lastGenerated.editedSkills
+    || (state.currentResumeDetail && state.currentResumeDetail.editedSkills)
+    || null;
+
+  const allSkills = editedSkills
+    ? editedSkills
+    : [
+        ...(state.skills.technical || []),
+        ...(state.skills.tools || [])
+      ].join(', ');
+
+  document.getElementById('editSkills').value = allSkills;
 
   // Projects - map from state.projects format, pre-select only first maxFeatures
   editableProjects = (state.projects || []).map(p => {
@@ -5511,10 +5518,15 @@ async function saveResumeEdits() {
   localStorage.setItem('resumeProjects', JSON.stringify(state.projects));
 
   // Update state
+  const editedSkillsRaw = document.getElementById('editSkills').value;
   state.lastGenerated.resume = newResume;
   state.lastGenerated.editedExperience = editableExperience;
   state.lastGenerated.editedProjects = editableProjects;
   state.lastGenerated.tailoredSummary = document.getElementById('editSummary').value;
+  state.lastGenerated.editedSkills = editedSkillsRaw;
+  if (state.currentResumeDetail) {
+    state.currentResumeDetail.editedSkills = editedSkillsRaw;
+  }
 
   // Update the display
   const resumeOutput = document.getElementById('resumeOutput');
@@ -5534,7 +5546,8 @@ async function saveResumeEdits() {
           email: currentUser.email,
           resumeId: state.currentResumeDetail.id,
           resume: newResume,
-          tailoredSummary: state.lastGenerated.tailoredSummary
+          tailoredSummary: state.lastGenerated.tailoredSummary,
+          editedSkills: editedSkillsRaw
         })
       });
       if (!res.ok) throw new Error('Failed to save');
@@ -5663,7 +5676,8 @@ function editResumeFromLibrary() {
     tailoredSummary: resume.tailoredSummary,
     company: resume.company,
     title: resume.title,
-    coverLetter: resume.coverLetter
+    coverLetter: resume.coverLetter,
+    editedSkills: resume.editedSkills || null
   };
 
   openResumeEditor();
