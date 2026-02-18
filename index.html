@@ -6027,10 +6027,12 @@ function downloadPDF() {
     }
 
     // ── SKILLS ──
-    const allSkills = [...(state.skills.technical || []), ...(state.skills.tools || [])];
-    if (allSkills.length > 0) {
+    const skillsText = (generated && generated.editedSkills)
+      || (state.currentResumeDetail && state.currentResumeDetail.editedSkills)
+      || [...(state.skills.technical || []), ...(state.skills.tools || [])].join(', ');
+    if (skillsText) {
       sectionHeader('Skills');
-      wrappedText(sanitize(allSkills.join(', ')), mL, 9, 'normal', contentW, [55, 55, 55]);
+      wrappedText(sanitize(skillsText), mL, 9, 'normal', contentW, [55, 55, 55]);
       y += 3;
     }
 
@@ -6205,13 +6207,12 @@ function populatePDFTemplate() {
   document.getElementById('pdfEducation').innerHTML = eduHtml;
   document.getElementById('pdfEducationSection').style.display = eduHtml ? 'block' : 'none';
 
-  // Skills
-  const allSkills = [
-    ...(state.skills.technical || []),
-    ...(state.skills.tools || [])
-  ];
-  document.getElementById('pdfSkills').textContent = allSkills.join(', ');
-  document.getElementById('pdfSkillsSection').style.display = allSkills.length ? 'block' : 'none';
+  // Skills — prefer edited skills over profile defaults
+  const skillsText = (generated && generated.editedSkills)
+    || (state.currentResumeDetail && state.currentResumeDetail.editedSkills)
+    || [...(state.skills.technical || []), ...(state.skills.tools || [])].join(', ');
+  document.getElementById('pdfSkills').textContent = skillsText;
+  document.getElementById('pdfSkillsSection').style.display = skillsText ? 'block' : 'none';
 
   // Projects - use edited projects if available
   const projectsToUse = (generated.editedProjects && generated.editedProjects.length > 0)
