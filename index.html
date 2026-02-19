@@ -5922,6 +5922,9 @@ function downloadPDF() {
     let experiences = [];
     if (generated.editedExperience && generated.editedExperience.length > 0) {
       experiences = generated.editedExperience;
+    } else if (generated.resume) {
+      // Parse Claude's tailored resume text so we get the right jobs + bullets
+      experiences = parseExperienceFromResume(generated.resume);
     } else if (state.experience.length > 0) {
       experiences = state.experience.map(exp => ({
         title: exp.title, company: exp.company,
