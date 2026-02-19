@@ -34,9 +34,10 @@ export async function onRequestGet(context) {
       shortDesc: p.shortDesc || '',
       tech: p.tech || '',
       features: p.features || [],
-      url: p.url || null,
+      url: p.githubPrivate ? null : (p.url || null),
       liveUrl: p.liveUrl || null,
-      aiAssisted: p.aiAssisted || false
+      aiAssisted: p.aiAssisted || false,
+      githubPrivate: p.githubPrivate || false
     }));
 
     return new Response(JSON.stringify({ projects }), { headers: CORS });
