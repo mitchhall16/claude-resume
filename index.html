@@ -517,10 +517,6 @@ Paste Resume Text
 <div class="form-group">
 <label>GitHub/Repo URL</label>
 <input type="url" id="projectUrl" placeholder="https://github.com/you/project">
-<div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-<input type="checkbox" id="projectGithubPrivate" style="width:auto;margin:0">
-<label for="projectGithubPrivate" style="margin:0;cursor:pointer;font-size:0.85em;color:#888">Private repo (hide from portfolio)</label>
-</div>
 </div>
 <div class="form-group">
 <label>Live Demo URL</label>
@@ -1941,7 +1937,6 @@ function editProject(i) {
   document.getElementById('projectContext').value = proj.context || '';
   document.getElementById('projectReadme').value = proj.readme || '';
   document.getElementById('projectAiAssisted').checked = proj.aiAssisted || false;
-  document.getElementById('projectGithubPrivate').checked = proj.githubPrivate || false;
   openModal('project');
 }
 
@@ -1955,8 +1950,7 @@ function saveProject() {
     features: document.getElementById('projectFeatures').value.split('\n').filter(f => f.trim()),
     context: document.getElementById('projectContext').value,
     readme: document.getElementById('projectReadme').value,
-    aiAssisted: document.getElementById('projectAiAssisted').checked,
-    githubPrivate: document.getElementById('projectGithubPrivate').checked
+    aiAssisted: document.getElementById('projectAiAssisted').checked
   };
 
   const editIndex = parseInt(document.getElementById('projectEditIndex').value);
@@ -1975,7 +1969,6 @@ function saveProject() {
   ['projectName', 'projectShortDesc', 'projectTech', 'projectUrl', 'projectLiveUrl', 'projectFeatures', 'projectContext', 'projectReadme'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('projectEditIndex').value = '-1';
   document.getElementById('projectAiAssisted').checked = false;
-  document.getElementById('projectGithubPrivate').checked = false;
 }
 
 async function aiExtractFromReadme() {
