@@ -5552,12 +5552,14 @@ async function saveResumeEdits() {
           resumeId: state.currentResumeDetail.id,
           resume: newResume,
           tailoredSummary: state.lastGenerated.tailoredSummary,
-          editedSkills: editedSkillsRaw
+          editedSkills: editedSkillsRaw,
+          editedProjects: editableProjects
         })
       });
       if (!res.ok) throw new Error('Failed to save');
       state.currentResumeDetail.resume = newResume;
       state.currentResumeDetail.tailoredSummary = state.lastGenerated.tailoredSummary;
+      state.currentResumeDetail.editedProjects = editableProjects;
       showToast('Resume saved!', 'success', 2000);
     } catch (e) {
       console.error('Error saving resume edits:', e);
@@ -5675,14 +5677,15 @@ function editResumeFromLibrary() {
     return;
   }
 
-  // Set up lastGenerated with library data
+  // Set up lastGenerated with library data (preserve editedProjects so deletions stick)
   state.lastGenerated = {
     resume: resume.resume,
     tailoredSummary: resume.tailoredSummary,
     company: resume.company,
     title: resume.title,
     coverLetter: resume.coverLetter,
-    editedSkills: resume.editedSkills || null
+    editedSkills: resume.editedSkills || null,
+    editedProjects: resume.editedProjects || null
   };
 
   openResumeEditor();

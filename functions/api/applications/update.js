@@ -2,7 +2,7 @@ export async function onRequestPost(context) {
   const { request, env } = context;
 
   try {
-    const { email, resumeId, status, notes, jobUrl, interviewDate, interviewNotes, aiScores, resume, coverLetter, tailoredSummary, editedSkills } = await request.json();
+    const { email, resumeId, status, notes, jobUrl, interviewDate, interviewNotes, aiScores, resume, coverLetter, tailoredSummary, editedSkills, editedProjects } = await request.json();
 
     if (!email || !resumeId) {
       return new Response(JSON.stringify({ error: 'Email and resumeId required' }), {
@@ -87,6 +87,10 @@ export async function onRequestPost(context) {
 
     if (editedSkills !== undefined) {
       updates.editedSkills = editedSkills;
+    }
+
+    if (editedProjects !== undefined) {
+      updates.editedProjects = editedProjects;
     }
 
     if (interviewDate) {
