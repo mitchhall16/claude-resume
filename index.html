@@ -5575,6 +5575,7 @@ async function saveResumeEdits() {
   newResume += [profile.email, profile.phone, profile.location].filter(Boolean).join(' | ') + '\n';
   if (profile.linkedin) newResume += profile.linkedin + '\n';
   if (profile.github) newResume += profile.github + '\n';
+  if (profile.portfolio) newResume += profile.portfolio + '\n';
   newResume += '\n';
 
   // Summary
@@ -5988,46 +5989,41 @@ function downloadPDF(previewOnly = false) {
     y += 14;
 
     // ── CONTACT INFO ──
+    // Build contact parts as {label, url} pairs
     const contactParts = [];
-    if (profile.email) contactParts.push(profile.email);
-    if (profile.phone) contactParts.push(profile.phone);
-    if (profile.location) contactParts.push(profile.location);
-    if (profile.linkedin) contactParts.push(profile.linkedin.replace('https://', ''));
-    if (profile.github) contactParts.push(profile.github.replace('https://', ''));
+    if (profile.email) contactParts.push({ label: profile.email, url: 'mailto:' + profile.email });
+    if (profile.phone) contactParts.push({ label: profile.phone, url: null });
+    if (profile.location) contactParts.push({ label: profile.location, url: null });
+    if (profile.linkedin) contactParts.push({ label: 'LinkedIn', url: profile.linkedin.startsWith('http') ? profile.linkedin : 'https://' + profile.linkedin });
+    if (profile.github) contactParts.push({ label: 'GitHub', url: profile.github.startsWith('http') ? profile.github : 'https://' + profile.github });
+    if (profile.portfolio) contactParts.push({ label: 'Portfolio', url: profile.portfolio.startsWith('http') ? profile.portfolio : 'https://' + profile.portfolio });
     if (contactParts.length > 0) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(75, 85, 99);
-      const contactStr = contactParts.join('  |  ');
+      const labels = contactParts.map(p => p.label);
+      const contactStr = labels.join('  |  ');
       const contactW = doc.getTextWidth(contactStr);
-      // If contact line is too wide, split into multiple lines
+      const startX = (pageW - contactW) / 2;
       if (contactW > contentW) {
-        const cLines = doc.splitTextToSize(contactParts.join(' | '), contentW);
+        const cLines = doc.splitTextToSize(labels.join(' | '), contentW);
         for (const cl of cLines) {
           const clW = doc.getTextWidth(cl);
           doc.text(cl, (pageW - clW) / 2, y);
           y += 11;
         }
       } else {
-        doc.text(contactStr, (pageW - contactW) / 2, y);
+        doc.text(contactStr, startX, y);
+        // Add clickable link annotations
+        let linkX = startX;
+        contactParts.forEach((part, idx) => {
+          const partW = doc.getTextWidth(part.label);
+          const sepW = idx < contactParts.length - 1 ? doc.getTextWidth('  |  ') : 0;
+          if (part.url) doc.link(linkX, y - 8, partW, 10, { url: part.url });
+          linkX += partW + sepW;
+        });
         y += 11;
       }
-
-      // Add clickable links
-      doc.setFontSize(9);
-      let linkX = (pageW - contactW) / 2;
-      contactParts.forEach((part, idx) => {
-        const partW = doc.getTextWidth(part);
-        const sepW = idx < contactParts.length - 1 ? doc.getTextWidth('  |  ') : 0;
-        if (part.includes('@')) {
-          doc.link(linkX, y - 18, partW, 12, { url: 'mailto:' + part });
-        } else if (part.includes('linkedin.com')) {
-          doc.link(linkX, y - 18, partW, 12, { url: 'https://' + part });
-        } else if (part.includes('github.com')) {
-          doc.link(linkX, y - 18, partW, 12, { url: 'https://' + part });
-        }
-        linkX += partW + sepW;
-      });
     }
     y += 2;
 
@@ -6306,8 +6302,9 @@ function populatePDFTemplate() {
   if (profile.email) contactParts.push(`<a href="mailto:${profile.email}" target="_blank" style="color:#4b5563;text-decoration:none">${profile.email}</a>`);
   if (profile.phone) contactParts.push(profile.phone);
   if (profile.location) contactParts.push(profile.location);
-  if (profile.linkedin) contactParts.push(`<a href="${profile.linkedin}" target="_blank" style="color:#2563eb;text-decoration:none">${profile.linkedin.replace('https://', '')}</a>`);
-  if (profile.github) contactParts.push(`<a href="${profile.github}" target="_blank" style="color:#2563eb;text-decoration:none">${profile.github.replace('https://', '')}</a>`);
+  if (profile.linkedin) contactParts.push(`<a href="${profile.linkedin}" target="_blank" style="color:#2563eb;text-decoration:none">LinkedIn</a>`);
+  if (profile.github) contactParts.push(`<a href="${profile.github}" target="_blank" style="color:#2563eb;text-decoration:none">GitHub</a>`);
+  if (profile.portfolio) contactParts.push(`<a href="${profile.portfolio}" target="_blank" style="color:#2563eb;text-decoration:none">Portfolio</a>`);
   document.getElementById('pdfContact').innerHTML = contactParts.join(' | ');
 
   // Summary - respect hideSummary toggle
