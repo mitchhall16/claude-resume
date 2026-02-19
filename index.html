@@ -1307,6 +1307,15 @@ Currently enrolled
 <input type="text" id="editSkills" placeholder="Python, JavaScript, AWS, etc.">
 </div>
 
+<!-- Education Section -->
+<div class="form-group" style="margin-top:20px">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+<label style="color:#00ff88;margin:0">Education</label>
+<button type="button" id="educationToggleBtn" onclick="toggleEducationHidden()" class="secondary small" style="font-size:0.75em;padding:3px 10px">Hide from PDF</button>
+</div>
+<div id="educationPreview" style="font-size:0.9em;color:#aaa;padding:8px 12px;background:#111;border-radius:6px;border:1px solid #333"></div>
+</div>
+
 <!-- Projects Section -->
 <div id="editProjectsContainer" style="margin-top:20px">
 <label style="color:#00ff88;display:block;margin-bottom:10px">Projects</label>
@@ -5003,6 +5012,18 @@ function openResumeEditor() {
 
   document.getElementById('editSkills').value = allSkills;
 
+  // Education preview + hide toggle
+  const eduPreview = document.getElementById('educationPreview');
+  if (state.education.length > 0) {
+    eduPreview.innerHTML = state.education.map(e => `<div>${e.degree} — ${e.school}</div>`).join('');
+  } else {
+    eduPreview.innerHTML = '<span style="color:#555">No education added</span>';
+  }
+  const eduHidden = !!state.lastGenerated.hideEducation;
+  eduPreview.style.opacity = eduHidden ? '0.35' : '1';
+  document.getElementById('educationToggleBtn').textContent = eduHidden ? 'Show in PDF' : 'Hide from PDF';
+  document.getElementById('educationToggleBtn').style.color = eduHidden ? '#00ff88' : '';
+
   // Projects - use previously edited projects if available (preserves deletions + feature selections),
   // otherwise fall back to profile projects
   if (state.lastGenerated.editedProjects && state.lastGenerated.editedProjects.length >= 0) {
@@ -5247,6 +5268,14 @@ function toggleSummaryHidden() {
   document.getElementById('editSummary').style.opacity = hidden ? '0.35' : '1';
   document.getElementById('summaryToggleBtn').textContent = hidden ? 'Show in PDF' : 'Hide from PDF';
   document.getElementById('summaryToggleBtn').style.color = hidden ? '#00ff88' : '';
+}
+
+function toggleEducationHidden() {
+  state.lastGenerated.hideEducation = !state.lastGenerated.hideEducation;
+  const hidden = state.lastGenerated.hideEducation;
+  document.getElementById('educationPreview').style.opacity = hidden ? '0.35' : '1';
+  document.getElementById('educationToggleBtn').textContent = hidden ? 'Show in PDF' : 'Hide from PDF';
+  document.getElementById('educationToggleBtn').style.color = hidden ? '#00ff88' : '';
 }
 
 function moveProjectUp(index) {
@@ -5586,7 +5615,8 @@ async function saveResumeEdits() {
           tailoredSummary: state.lastGenerated.tailoredSummary,
           editedSkills: editedSkillsRaw,
           editedProjects: editableProjects,
-          hideSummary: state.lastGenerated.hideSummary || false
+          hideSummary: state.lastGenerated.hideSummary || false,
+          hideEducation: state.lastGenerated.hideEducation || false
         })
       });
       if (!res.ok) throw new Error('Failed to save');
@@ -5594,6 +5624,7 @@ async function saveResumeEdits() {
       state.currentResumeDetail.tailoredSummary = state.lastGenerated.tailoredSummary;
       state.currentResumeDetail.editedProjects = editableProjects;
       state.currentResumeDetail.hideSummary = state.lastGenerated.hideSummary || false;
+      state.currentResumeDetail.hideEducation = state.lastGenerated.hideEducation || false;
       showToast('Resume saved!', 'success', 2000);
     } catch (e) {
       console.error('Error saving resume edits:', e);
@@ -5720,7 +5751,8 @@ function editResumeFromLibrary() {
     coverLetter: resume.coverLetter,
     editedSkills: resume.editedSkills || null,
     editedProjects: resume.editedProjects || null,
-    hideSummary: resume.hideSummary || false
+    hideSummary: resume.hideSummary || false,
+    hideEducation: resume.hideEducation || false
   };
 
   openResumeEditor();
@@ -6016,7 +6048,7 @@ function downloadPDF() {
     }
 
     // ── EDUCATION ──
-    if (state.education.length > 0) {
+    if (!generated.hideEducation && state.education.length > 0) {
       sectionHeader('Education');
       state.education.forEach(edu => {
         checkPage(18);
@@ -6243,13 +6275,13 @@ function populatePDFTemplate() {
   document.getElementById('pdfExperienceSection').style.display = expHtml ? 'block' : 'none';
 
   // Education with relevant courses on separate line
-  const eduHtml = state.education.map(edu => `
+  const eduHtml = generated.hideEducation ? '' : state.education.map(edu => `
     <div style="margin-bottom:10px;page-break-inside:avoid">
       <div style="font-size:11px"><strong>${edu.degree}</strong> <span style="color:#6b7280;white-space:nowrap">| ${formatExpDate(edu.start)} - ${formatExpDate(edu.end)}</span></div>
       <div style="font-size:10px;color:#4b5563">${edu.school}${edu.location ? ', ' + edu.location : ''}${edu.gpa ? ' | GPA: ' + edu.gpa : ''}</div>
       ${edu.extras ? `<div style="font-size:10px;color:#4b5563;margin-top:4px"><strong style="color:#374151">Relevant Courses:</strong> ${edu.extras.replace(/\b([A-Z]{2,5}\s?\d{3,5}[A-Z]?)\b/g, '<strong style="color:#1a1a1a">$1</strong>')}</div>` : ''}
     </div>
-  `).join('');
+  `).join('') || '';
   document.getElementById('pdfEducation').innerHTML = eduHtml;
   document.getElementById('pdfEducationSection').style.display = eduHtml ? 'block' : 'none';
 
