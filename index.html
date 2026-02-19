@@ -1245,7 +1245,7 @@ Currently enrolled
 <button class="modal-close" onclick="closePDFPreview()">&times;</button>
 </div>
 </div>
-<div id="pdfPreviewContent" style="background:#fff;padding:0.5in;min-height:11in"></div>
+<iframe id="pdfPreviewFrame" style="width:100%;height:85vh;border:none;background:#fff"></iframe>
 </div>
 </div>
 
@@ -5746,25 +5746,7 @@ function downloadCoverLetterPDFFromEditor() {
 // ============ PDF Preview Functions ============
 
 function previewPDF() {
-  if (!state.lastGenerated || !state.lastGenerated.resume) {
-    alert('Please generate a resume first');
-    return;
-  }
-
-  // Populate the template
-  populatePDFTemplate();
-
-  // Clone the PDF content into preview
-  const pdfContent = document.getElementById('pdfContent');
-  const previewContent = document.getElementById('pdfPreviewContent');
-  previewContent.innerHTML = pdfContent.innerHTML;
-
-  // Copy styles
-  previewContent.style.fontFamily = 'Arial, Helvetica, sans-serif';
-  previewContent.style.color = '#1a1a1a';
-  previewContent.style.lineHeight = '1.5';
-
-  document.getElementById('pdfPreviewModal').classList.add('active');
+  downloadPDF(true);
 }
 
 function closePDFPreview() {
@@ -5803,13 +5785,17 @@ function previewPDFFromLibrary() {
     return;
   }
 
-  // Set up lastGenerated with library data
+  // Set up lastGenerated with library data (including all edits)
   state.lastGenerated = {
     resume: resume.resume,
     tailoredSummary: resume.tailoredSummary,
     company: resume.company,
     title: resume.title,
-    coverLetter: resume.coverLetter
+    coverLetter: resume.coverLetter,
+    editedSkills: resume.editedSkills || null,
+    editedProjects: resume.editedProjects || null,
+    editedEducation: resume.editedEducation || null,
+    hideSummary: resume.hideSummary || false
   };
 
   previewPDF();
@@ -5892,7 +5878,7 @@ function countPDFWords(resume) {
 
 // ============ PDF Export Functions (ATS-Friendly Text-Based) ============
 
-function downloadPDF() {
+function downloadPDF(previewOnly = false) {
   if (!state.lastGenerated || !state.lastGenerated.resume) {
     alert('Please generate a resume first');
     return;
@@ -6266,10 +6252,19 @@ function downloadPDF() {
       });
     }
 
-    // Save
+    // Save or preview
     const safeName = (profile.fullName || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
     const safeCompany = (generated.company || 'Resume').replace(/[^a-zA-Z0-9]/g, '_');
-    doc.save(`${safeName}_${safeCompany}.pdf`);
+    if (previewOnly) {
+      const blobUrl = doc.output('bloburl');
+      const frame = document.getElementById('pdfPreviewFrame');
+      if (frame) {
+        frame.src = blobUrl;
+        document.getElementById('pdfPreviewModal').classList.add('active');
+      }
+    } else {
+      doc.save(`${safeName}_${safeCompany}.pdf`);
+    }
 
   } catch (err) {
     console.error('PDF generation error:', err);
