@@ -4995,19 +4995,24 @@ function openResumeEditor() {
 
   document.getElementById('editSkills').value = allSkills;
 
-  // Projects - map from state.projects format, pre-select only first maxFeatures
-  editableProjects = (state.projects || []).map(p => {
-    const maxF = p.maxFeatures || 3;
-    return {
-      name: p.name || '',
-      shortDesc: p.shortDesc || '',
-      tech: p.tech || '',
-      url: p.url || '',
-      liveUrl: p.liveUrl || '',
-      features: (p.features || []).slice(0, maxF),
-      maxFeatures: maxF
-    };
-  });
+  // Projects - use previously edited projects if available (preserves deletions + feature selections),
+  // otherwise fall back to profile projects
+  if (state.lastGenerated.editedProjects && state.lastGenerated.editedProjects.length >= 0) {
+    editableProjects = state.lastGenerated.editedProjects.map(p => ({ ...p }));
+  } else {
+    editableProjects = (state.projects || []).map(p => {
+      const maxF = p.maxFeatures || 3;
+      return {
+        name: p.name || '',
+        shortDesc: p.shortDesc || '',
+        tech: p.tech || '',
+        url: p.url || '',
+        liveUrl: p.liveUrl || '',
+        features: (p.features || []).slice(0, maxF),
+        maxFeatures: maxF
+      };
+    });
+  }
   renderEditableProjects();
 
   document.getElementById('resumeEditorModal').classList.add('active');
