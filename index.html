@@ -6220,8 +6220,8 @@ function populatePDFTemplate() {
   if (profile.github) contactParts.push(`<a href="${profile.github}" target="_blank" style="color:#2563eb;text-decoration:none">${profile.github.replace('https://', '')}</a>`);
   document.getElementById('pdfContact').innerHTML = contactParts.join(' | ');
 
-  // Summary - use tailored summary if available
-  const summary = generated.tailoredSummary || profile.summary || '';
+  // Summary - respect hideSummary toggle
+  const summary = generated.hideSummary ? '' : (generated.tailoredSummary || profile.summary || '');
   document.getElementById('pdfSummary').textContent = summary;
   document.getElementById('pdfSummarySection').style.display = summary ? 'block' : 'none';
 
