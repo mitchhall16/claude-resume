@@ -3615,13 +3615,17 @@ function downloadPDFFromDetail() {
     return;
   }
 
-  // Set lastGenerated with saved resume data for PDF generation, preserving editedProjects/Experience
+  // Set lastGenerated with ALL saved resume data so PDF respects every edit
   state.lastGenerated = {
-    ...state.lastGenerated,
     resume: resume.resume,
     tailoredSummary: resume.tailoredSummary,
     company: resume.company,
-    title: resume.title
+    title: resume.title,
+    editedSkills: resume.editedSkills || null,
+    editedProjects: resume.editedProjects || null,
+    editedEducation: resume.editedEducation || null,
+    editedExperience: resume.editedExperience || null,
+    hideSummary: resume.hideSummary || false
   };
 
   console.log('Calling downloadPDF with lastGenerated:', state.lastGenerated);
@@ -5795,6 +5799,7 @@ function previewPDFFromLibrary() {
     editedSkills: resume.editedSkills || null,
     editedProjects: resume.editedProjects || null,
     editedEducation: resume.editedEducation || null,
+    editedExperience: resume.editedExperience || null,
     hideSummary: resume.hideSummary || false
   };
 
