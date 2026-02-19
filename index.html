@@ -1874,6 +1874,21 @@ function removeSkill(type, i) {
 });
 
 // Project functions
+function moveProjectUp(i) {
+  if (i === 0) return;
+  [state.projects[i - 1], state.projects[i]] = [state.projects[i], state.projects[i - 1]];
+  localStorage.setItem('resumeProjects', JSON.stringify(state.projects));
+  renderProjects();
+  saveUserData();
+}
+function moveProjectDown(i) {
+  if (i === state.projects.length - 1) return;
+  [state.projects[i], state.projects[i + 1]] = [state.projects[i + 1], state.projects[i]];
+  localStorage.setItem('resumeProjects', JSON.stringify(state.projects));
+  renderProjects();
+  saveUserData();
+}
+
 function renderProjects() {
   const list = document.getElementById('projectsList');
   list.innerHTML = state.projects.map((proj, i) => `
@@ -1890,6 +1905,8 @@ function renderProjects() {
           </div>
         </div>
         <div class="item-actions">
+          <button class="secondary" onclick="moveProjectUp(${i})" style="padding:6px 10px;font-size:0.85em" title="Move up">▲</button>
+          <button class="secondary" onclick="moveProjectDown(${i})" style="padding:6px 10px;font-size:0.85em" title="Move down">▼</button>
           <button class="secondary" onclick="editProject(${i})">Edit</button>
           <button class="danger" onclick="deleteProject(${i})">Delete</button>
         </div>
