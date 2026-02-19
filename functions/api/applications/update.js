@@ -101,10 +101,6 @@ export async function onRequestPost(context) {
       updates.hideSummary = hideSummary;
     }
 
-    if (hideEducation !== undefined) {
-      updates.hideEducation = hideEducation;
-    }
-
     if (interviewDate) {
       if (!resumes[resumeIndex].interviews) {
         resumes[resumeIndex].interviews = [];
