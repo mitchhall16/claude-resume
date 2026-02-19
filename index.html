@@ -1290,7 +1290,7 @@ Currently enrolled
 <div class="form-group">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
 <label style="color:#00ff88;margin:0">Professional Summary</label>
-<button type="button" onclick="document.getElementById('editSummary').value=''" class="danger small" style="font-size:0.75em;padding:3px 10px">Remove</button>
+<button type="button" id="summaryToggleBtn" onclick="toggleSummaryHidden()" class="secondary small" style="font-size:0.75em;padding:3px 10px">Hide from PDF</button>
 </div>
 <textarea id="editSummary" rows="4" style="font-size:0.95em"></textarea>
 </div>
@@ -4977,8 +4977,13 @@ function openResumeEditor() {
   const resumeText = state.lastGenerated.resume;
 
   // Extract summary (usually first paragraph after contact info)
-  const summary = state.lastGenerated.tailoredSummary || state.profile.summary || '';
+  const summary = state.lastGenerated.tailoredSummary ?? state.profile.summary ?? '';
   document.getElementById('editSummary').value = summary;
+  // Restore hidden state
+  const hidden = !!state.lastGenerated.hideSummary;
+  document.getElementById('editSummary').style.opacity = hidden ? '0.35' : '1';
+  document.getElementById('summaryToggleBtn').textContent = hidden ? 'Show in PDF' : 'Hide from PDF';
+  document.getElementById('summaryToggleBtn').style.color = hidden ? '#00ff88' : '';
 
   // Parse experience from the resume text
   editableExperience = parseExperienceFromResume(resumeText);
@@ -5187,7 +5192,11 @@ function renderEditableProjects() {
                  style="margin-bottom:5px;width:100%;font-size:0.9em"
                  placeholder="Technologies (e.g., React, Node.js, AWS)">
         </div>
-        <button onclick="removeEditableProject(${i})" class="danger small" style="margin-left:10px">&times;</button>
+        <div style="display:flex;flex-direction:column;gap:3px;margin-left:10px">
+          <button onclick="moveProjectUp(${i})" class="secondary small" style="padding:2px 7px;font-size:0.8em;line-height:1" ${i === 0 ? 'disabled' : ''}>▲</button>
+          <button onclick="moveProjectDown(${i})" class="secondary small" style="padding:2px 7px;font-size:0.8em;line-height:1" ${i === editableProjects.length - 1 ? 'disabled' : ''}>▼</button>
+          <button onclick="removeEditableProject(${i})" class="danger small" style="padding:2px 7px;font-size:0.8em;line-height:1">&times;</button>
+        </div>
       </div>
       <textarea rows="2" style="font-size:0.9em;margin-bottom:8px"
                 onchange="editableProjects[${i}].shortDesc = this.value"
@@ -5230,6 +5239,26 @@ function renderEditableProjects() {
       ` : ''}
     </div>
   `;
+}
+
+function toggleSummaryHidden() {
+  state.lastGenerated.hideSummary = !state.lastGenerated.hideSummary;
+  const hidden = state.lastGenerated.hideSummary;
+  document.getElementById('editSummary').style.opacity = hidden ? '0.35' : '1';
+  document.getElementById('summaryToggleBtn').textContent = hidden ? 'Show in PDF' : 'Hide from PDF';
+  document.getElementById('summaryToggleBtn').style.color = hidden ? '#00ff88' : '';
+}
+
+function moveProjectUp(index) {
+  if (index === 0) return;
+  [editableProjects[index - 1], editableProjects[index]] = [editableProjects[index], editableProjects[index - 1]];
+  renderEditableProjects();
+}
+
+function moveProjectDown(index) {
+  if (index === editableProjects.length - 1) return;
+  [editableProjects[index], editableProjects[index + 1]] = [editableProjects[index + 1], editableProjects[index]];
+  renderEditableProjects();
 }
 
 function removeEditableProject(index) {
@@ -5465,7 +5494,7 @@ async function saveResumeEdits() {
 
   // Summary
   const summary = document.getElementById('editSummary').value;
-  if (summary) {
+  if (summary && !state.lastGenerated.hideSummary) {
     newResume += 'PROFESSIONAL SUMMARY\n';
     newResume += summary + '\n\n';
   }
@@ -5556,13 +5585,15 @@ async function saveResumeEdits() {
           resume: newResume,
           tailoredSummary: state.lastGenerated.tailoredSummary,
           editedSkills: editedSkillsRaw,
-          editedProjects: editableProjects
+          editedProjects: editableProjects,
+          hideSummary: state.lastGenerated.hideSummary || false
         })
       });
       if (!res.ok) throw new Error('Failed to save');
       state.currentResumeDetail.resume = newResume;
       state.currentResumeDetail.tailoredSummary = state.lastGenerated.tailoredSummary;
       state.currentResumeDetail.editedProjects = editableProjects;
+      state.currentResumeDetail.hideSummary = state.lastGenerated.hideSummary || false;
       showToast('Resume saved!', 'success', 2000);
     } catch (e) {
       console.error('Error saving resume edits:', e);
@@ -5688,7 +5719,8 @@ function editResumeFromLibrary() {
     title: resume.title,
     coverLetter: resume.coverLetter,
     editedSkills: resume.editedSkills || null,
-    editedProjects: resume.editedProjects || null
+    editedProjects: resume.editedProjects || null,
+    hideSummary: resume.hideSummary || false
   };
 
   openResumeEditor();
@@ -5921,8 +5953,8 @@ function downloadPDF() {
     }
     y += 2;
 
-    // ── SUMMARY ── (use ?? so an explicitly cleared summary stays empty)
-    const summary = generated.tailoredSummary ?? profile.summary ?? '';
+    // ── SUMMARY ──
+    const summary = generated.hideSummary ? '' : (generated.tailoredSummary ?? profile.summary ?? '');
     if (summary) {
       sectionHeader('Professional Summary');
       wrappedText(summary, mL, 9.5, 'normal', contentW, [60, 60, 60]);
