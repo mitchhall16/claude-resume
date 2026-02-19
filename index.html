@@ -1288,7 +1288,10 @@ Currently enrolled
 
 <!-- Summary Section -->
 <div class="form-group">
-<label style="color:#00ff88">Professional Summary</label>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+<label style="color:#00ff88;margin:0">Professional Summary</label>
+<button type="button" onclick="document.getElementById('editSummary').value=''" class="danger small" style="font-size:0.75em;padding:3px 10px">Remove</button>
+</div>
 <textarea id="editSummary" rows="4" style="font-size:0.95em"></textarea>
 </div>
 
@@ -5918,8 +5921,8 @@ function downloadPDF() {
     }
     y += 2;
 
-    // ── SUMMARY ──
-    const summary = generated.tailoredSummary || profile.summary || '';
+    // ── SUMMARY ── (use ?? so an explicitly cleared summary stays empty)
+    const summary = generated.tailoredSummary ?? profile.summary ?? '';
     if (summary) {
       sectionHeader('Professional Summary');
       wrappedText(summary, mL, 9.5, 'normal', contentW, [60, 60, 60]);
