@@ -1,6 +1,6 @@
 export async function onRequestPost(context) {
   const { request, env } = context;
-  const API_KEY = env.ANTHROPIC_API_KEY || 'REDACTED';
+  const API_KEY = env.ANTHROPIC_API_KEY;
 
   try {
     const { question, context: jobContext, length, profile, experience, education, skills, projects } = await request.json();
