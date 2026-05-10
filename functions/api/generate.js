@@ -4,18 +4,19 @@ export async function onRequestPost(context) {
 
   try {
     const data = await request.json();
-    const { profile, experience, education, certs, skills, projects, jobDescription, targetRole, additionalInstructions, includeCoverLetter } = data;
+    const { profile, experience, education, certs, skills, projects, jobDescription, targetRole, additionalInstructions, includeCoverLetter, plainResume } = data;
 
-    // Validate required data
-    if (!jobDescription) {
+    // Validate required data (job description only required for tailored mode)
+    if (!plainResume && !jobDescription) {
       return new Response(JSON.stringify({ error: 'Job description is required' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    // Build the enhanced prompt based on ClaudeSkills approach
-    const prompt = buildEnhancedPrompt(profile || {}, experience || [], education || [], certs || [], skills || {}, projects || [], jobDescription, targetRole, additionalInstructions, includeCoverLetter);
+    const prompt = plainResume
+      ? buildPlainPrompt(profile || {}, experience || [], education || [], certs || [], skills || {}, projects || [], additionalInstructions)
+      : buildEnhancedPrompt(profile || {}, experience || [], education || [], certs || [], skills || {}, projects || [], jobDescription, targetRole, additionalInstructions, includeCoverLetter);
 
     console.log('Calling Claude API with prompt length:', prompt.length);
 
@@ -66,6 +67,80 @@ export async function onRequestPost(context) {
       headers: { 'Content-Type': 'application/json' }
     });
   }
+}
+
+function buildPlainPrompt(profile, experience, education, certs, skills, projects, additionalInstructions) {
+  const experienceText = (experience || []).map(exp => `
+**${exp.title}** at **${exp.company}** (${exp.location || ''})
+${exp.start} - ${exp.end || 'Present'}
+${(exp.bullets || []).map(b => '• ' + b).join('\n')}
+`).join('\n');
+
+  const educationText = (education || []).map(edu => `
+**${edu.degree}** - ${edu.school} (${edu.start || ''}-${edu.end || ''})${edu.gpa ? ' GPA: ' + edu.gpa : ''}
+${edu.extras || ''}
+`).join('\n');
+
+  const certsText = (certs || []).map(c => `• ${c.name} - ${c.org} (${c.date})`).join('\n');
+
+  const projectsText = (projects || []).map(proj => `
+**${proj.name}** — ${proj.shortDesc || ''}
+Technologies: ${proj.tech || 'Not specified'}
+${proj.url ? `URL: ${proj.url}` : ''}
+${(proj.features || []).map(f => '• ' + f).join('\n')}
+`).join('\n');
+
+  return `You are a professional resume writer. Produce a clean, well-formatted general resume for the candidate below — NOT tailored to any job. Keep all of the candidate's content; do not invent or omit roles.
+
+## CANDIDATE DATA
+
+**Personal Information:**
+- Name: ${profile.fullName || ''}
+- Email: ${profile.email || ''}
+- Phone: ${profile.phone || ''}
+- Location: ${profile.location || ''}
+- LinkedIn: ${profile.linkedin || ''}
+- GitHub: ${profile.github || ''}
+- Portfolio: ${profile.portfolio || ''}
+
+**Professional Summary:**
+${profile.summary || ''}
+
+**Work Experience:**
+${experienceText || 'None'}
+
+**Education:**
+${educationText || 'None'}
+
+**Certifications:**
+${certsText || 'None'}
+
+**Technical Skills:** ${skills.technical?.join(', ') || ''}
+**Soft Skills:** ${skills.soft?.join(', ') || ''}
+**Tools & Technologies:** ${skills.tools?.join(', ') || ''}
+
+**Projects:**
+${projectsText || 'None'}
+
+${additionalInstructions ? `**Additional Instructions:** ${additionalInstructions}` : ''}
+
+---
+
+## RULES (CRITICAL)
+1. Roles MUST appear in strict reverse-chronological order (most recent / current role first). Never reorder by relevance.
+2. Education MUST appear in reverse-chronological order.
+3. Section order: Header → Professional Summary → Professional Experience → Projects → Education → Certifications → Skills.
+4. Keep ALL bullets the candidate provided. You may lightly tighten wording but do NOT drop bullets and do NOT invent achievements or numbers.
+5. Use clean plain text suitable for copy/paste. No markdown headers, no asterisks. Use simple bullet character "•".
+
+## OUTPUT FORMAT
+
+Respond in EXACTLY this format:
+
+---RESUME---
+[Complete plain-text resume here, following all rules above]
+---END---
+`;
 }
 
 function buildEnhancedPrompt(profile, experience, education, certs, skills, projects, jobDescription, targetRole, additionalInstructions, includeCoverLetter) {

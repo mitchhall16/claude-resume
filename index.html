@@ -604,6 +604,7 @@ Reduced page load time by 60% through optimization"></textarea>
 </div>
 <div class="generate-section">
 <button class="generate-btn" onclick="generateResume()">Generate ATS-Optimized Resume</button>
+<button class="generate-btn" onclick="generatePlainResume()" style="background:linear-gradient(135deg,#10b981,#059669);margin-left:10px">Generate Plain Resume (No Job Needed)</button>
 </div>
 <div class="loading" id="loading">
 <div class="spinner"></div>
@@ -1570,6 +1571,14 @@ function closeModal(type) {
 
 // Experience functions
 function renderExperience() {
+  state.experience.sort((a, b) => {
+    const aPresent = !a.end || /present/i.test(a.end);
+    const bPresent = !b.end || /present/i.test(b.end);
+    if (aPresent && !bPresent) return -1;
+    if (bPresent && !aPresent) return 1;
+    return (b.start || '').localeCompare(a.start || '');
+  });
+  localStorage.setItem('resumeExperience', JSON.stringify(state.experience));
   const list = document.getElementById('experienceList');
   list.innerHTML = state.experience.map((exp, i) => `
     <div class="item">
@@ -2750,6 +2759,71 @@ async function fetchJobFromUrl() {
   } finally {
     btn.textContent = originalText;
     btn.disabled = false;
+  }
+}
+
+// Generate plain resume (no job description required)
+async function generatePlainResume() {
+  document.getElementById('loading').classList.add('active');
+  document.getElementById('output').style.display = 'none';
+
+  const payload = {
+    profile: state.profile,
+    experience: state.experience,
+    education: state.education,
+    certs: state.certs,
+    skills: state.skills,
+    projects: state.projects,
+    plainResume: true,
+    additionalInstructions: document.getElementById('additionalInstructions').value
+  };
+
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'API error: ' + res.status);
+    }
+    const data = await res.json();
+
+    state.lastGenerated = {
+      company: 'General',
+      title: document.getElementById('targetRole').value || 'Resume',
+      jobDescription: '',
+      jobUrl: '',
+      score: null,
+      matchedKeywords: [],
+      missingKeywords: [],
+      tailoredSummary: state.profile.summary || '',
+      resume: data.resume,
+      recruiterAssessment: ''
+    };
+
+    const atsEl = document.getElementById('atsScore');
+    if (atsEl) atsEl.textContent = '—';
+    const kwEl = document.getElementById('keywordAnalysis');
+    if (kwEl) kwEl.innerHTML = '<em style="color:#888">No job description provided — plain resume generated.</em>';
+    const relEl = document.getElementById('relevanceRankings');
+    if (relEl) relEl.textContent = 'N/A (plain resume)';
+    const sumEl = document.getElementById('tailoredSummary');
+    if (sumEl) sumEl.textContent = state.profile.summary || '';
+    const outEl = document.getElementById('resumeOutput');
+    if (outEl) outEl.textContent = data.resume;
+    const recEl = document.getElementById('recruiterAssessment');
+    if (recEl) recEl.innerHTML = 'N/A — generate with a job description for recruiter analysis.';
+    const clSection = document.getElementById('coverLetterSection');
+    if (clSection) clSection.style.display = 'none';
+
+    document.getElementById('output').style.display = 'block';
+    document.getElementById('output').scrollIntoView({ behavior: 'smooth' });
+  } catch (e) {
+    alert('Error: ' + e.message);
+  } finally {
+    document.getElementById('loading').classList.remove('active');
   }
 }
 
